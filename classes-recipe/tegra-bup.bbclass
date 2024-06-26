@@ -7,7 +7,7 @@ def bupfile_basename(d):
 
 def bup_dependency(d):
     if bb.utils.to_boolean(d.getVar('INITRAMFS_IMAGE_BUNDLE')):
-        return "kernel-bup-payload:do_deploy"
+        return ""
     return "${INITRAMFS_IMAGE}:do_image_complete"
 
 BUPFILENAME = "${@bupfile_basename(d)}"
