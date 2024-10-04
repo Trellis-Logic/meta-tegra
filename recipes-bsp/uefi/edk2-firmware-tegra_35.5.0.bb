@@ -14,6 +14,9 @@ inherit deploy ${TEGRA_UEFI_SIGNING_CLASS}
 EDK2_PLATFORM = "Jetson"
 EDK2_PLATFORM_DSC = "Platform/NVIDIA/Jetson/Jetson.dsc"
 EDK2_BIN_NAME = "uefi_jetson.bin"
+# Optionaly build with additional prints for debug purposes
+# See possible settings in https://github.com/NVIDIA/edk2-nvidia/blob/main/Platform/NVIDIA/NVIDIA.common.dsc.inc
+EDK2_PCD_DEBUG_PRINT_ERROR_LEVEL ?= ""
 NVDISPLAY_INIT_DEFAULT = ""
 NVDISPLAY_INIT_DEFAULT:tegra194 = "${DEPLOY_DIR_IMAGE}/nvdisp-init.bin"
 NVDISPLAY_INIT ?= "${NVDISPLAY_INIT_DEFAULT}"
@@ -21,6 +24,11 @@ NVDISPLAY_INIT_DEPS = ""
 NVDISPLAY_INIT_DEPS:tegra194 = "nvdisp-init:do_deploy"
 
 SRC_URI += "${@'file://L4TConfiguration-RootfsRedundancyLevelABEnable.dtsi' if bb.utils.to_boolean(d.getVar('USE_REDUNDANT_FLASH_LAYOUT')) else ''}"
+
+do_patch[postfuncs] += "${@'apply_debug_options' if d.getVar('EDK2_PCD_DEBUG_PRINT_ERROR_LEVEL') != '' else ''}"
+apply_debug_options() {
+    sed -i -e"s/\(\s.gEfiMdePkgTokenSpaceGuid\.PcdDebugPrintErrorLevel|\).*/\1${EDK2_PCD_DEBUG_PRINT_ERROR_LEVEL}/" ${S_EDK2_NVIDIA}/Platform/NVIDIA/NVIDIA.common.dsc.inc
+}
 
 do_compile:append() {
     rm -rf ${B}/images
