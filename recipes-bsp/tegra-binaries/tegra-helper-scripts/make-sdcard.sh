@@ -10,6 +10,7 @@ DEVNAME=
 PARTSEP=
 OUTSYSBLK=
 HAVEBMAPTOOL=
+SUBTOOL_OUT=/dev/null
 
 SUDO=
 [ $(id -u) -eq 0 ] || SUDO="sudo"
@@ -33,6 +34,8 @@ Options:
   --no-final-part         Skip special handling of final partition
   --serial-number <sn>    Select USB /dev/sd[a-z] device based on serial number
   --keep-connection       Do not disconnect USB drive after use
+  --no-bmaptool           Do not use bmaptool, even if it exists
+  --subtool-stdout        Redirect subtool output to stdout instead of ${SUBTOOL_OUT}
 
 Confirmation is required if <output> is a device or if it is the name of
 a file that already exists.
@@ -131,7 +134,7 @@ make_partitions() {
 	sgdiskcmd="$sgdiskcmd --largest-new=$partnumber --typecode=$partnumber:$parttype -c $partnumber:$partname"
     fi
     local errlog=$(mktemp)
-    if ! eval "$sgdiskcmd" >/dev/null 2>"$errlog"; then
+    if ! eval "$sgdiskcmd" >${SUBTOOL_OUT} 2>"$errlog"; then
 	echo "ERR: partitioning failed" >&2
 	cat "$errlog" >&2
 	rm -f "$errlog"
@@ -145,16 +148,25 @@ copy_to_device() {
     local src="$1"
     local dst="$2"
     if [ -z "$HAVEBMAPTOOL" ]; then
-	dd if="$src" of="$dst" conv=fsync status=none >/dev/null 2>&1 || return 1
+	dd if="$src" of="$dst" conv=fsync status=none >${SUBTOOL_OUT} 2>&1 || return 1
 	return 0
     fi
     local bmap=$(mktemp)
     local rc=0
-    bmaptool create -o "$bmap" "$src" >/dev/null 2>&1 || rc=1
+    local errlog=$(mktemp)
+    bmaptool create -o "$bmap" "$src" >${SUBTOOL_OUT} 2>"$errlog" || rc=1
     if [ $rc -eq 0 ]; then
-	$SUDO bmaptool copy --bmap "$bmap" "$src" "$dst" >/dev/null 2>&1 || rc=1
+        $SUDO bmaptool copy --bmap "$bmap" "$src" "$dst" >${SUBTOOL_OUT} 2>"$errlog" || rc=1
+        if [ $rc -ne 0 ]; then
+            echo "ERR: bmaptool copy step failed - maybe try with --no-bmaptool?" >&2
+            cat "$errlog" >&2
+        fi
+    else
+        echo "ERR: bmaptool create step failed - maybe try with --no-bmaptool?" >&2
+        cat "$errlog" >&2
     fi
     rm "$bmap"
+    rm -rf "$errlog"
     return $rc
 }
 
@@ -162,7 +174,7 @@ unmount_device() {
     local dev="$1"
     local mnt=$(cat /proc/mounts | grep "^$dev" | cut -d' ' -f2)
     if [ -n "$mnt" ]; then
-        if ! umount "${mnt}" > /dev/null 2>&1; then
+        if ! umount "${mnt}" >${SUBTOOL_OUT} 2>&1; then
             echo "ERR: unmount ${mnt} on device $dev failed" >&2
             return 1
         fi
@@ -266,7 +278,7 @@ write_partitions_to_image() {
 	    return 1
 	fi
 	echo "  Writing $partfile..."
-	if ! dd if="$partfile" of="$output" conv=notrunc seek=${partstart[$partnumber]} status=none >/dev/null 2>&1; then
+	if ! dd if="$partfile" of="$output" conv=notrunc seek=${partstart[$partnumber]} status=none >${SUBTOOL_OUT} 2>&1; then
 	    echo "ERR: failed to write $partfile to $output (offset ${partstart[$partnumber]}" >&2
 	    return 1
 	fi
@@ -311,6 +323,7 @@ keep_connection=
 serial_number=
 ignore_finalpart=
 use_start_locations=
+no_bmaptool=
 while true; do
     case "$1" in
 	--serial-number)
@@ -330,6 +343,15 @@ while true; do
 	    use_start_locations=yes
 	    shift
 	    ;;
+	--no-bmaptool)
+	    no_bmaptool=yes
+	    shift
+	    ;;
+	--subtool-stdout)
+	    SUBTOOL_OUT=/dev/stdout
+	    shift
+	    ;;
+
 	-h)
 	    usage
 	    exit 0
@@ -434,12 +456,12 @@ fi
 
 echo  "Creating partitions"
 [ -b "$output" ] || dd if=/dev/zero of="$output" bs=512 count=0 seek=$outsize status=none
-if ! sgdisk "$output" --clear --mbrtogpt >/dev/null 2>&1; then
-    if ! sgdisk "$output" --zap-all >/dev/null 2>&1; then
+if ! sgdisk "$output" --clear --mbrtogpt >${SUBTOOL_OUT} 2>&1; then
+    if ! sgdisk "$output" --zap-all >${SUBTOOL_OUT} 2>&1; then
 	echo "ERR: could not initialize GPT on $output" >&2
 	exit 1
     fi
-    if ! sgdisk "$output" --clear --mbrtogpt >/dev/null 2>&1; then
+    if ! sgdisk "$output" --clear --mbrtogpt >${SUBTOOL_OUT} 2>&1; then
 	echo "ERR: could not initialize GPT on $output after --zap-all" >&2
 	exit 1
     fi
@@ -447,19 +469,19 @@ fi
 
 find_finalpart || exit 1
 make_partitions || exit 1
-if ! sgdisk "$output" --verify >/dev/null 2>&1; then
+if ! sgdisk "$output" --verify >${SUBTOOL_OUT} 2>&1; then
     echo "ERR: verification failed for $output" >&2
     exit 1
 fi
 if [ -b "$output" ]; then
     sleep 1
-    if ! $SUDO partprobe "$output" >/dev/null 2>&1; then
+    if ! $SUDO partprobe "$output" >${SUBTOOL_OUT} 2>&1; then
 	echo "ERR: partprobe failed after partitioning $output" >&2
 	exit 1
     fi
     sleep 1
 fi
-if type -p bmaptool >/dev/null 2>&1; then
+if [ -z "$no_bmaptool" ] && type -p bmaptool >/dev/null 2>&1; then
     HAVEBMAPTOOL=yes
 fi
 echo "Writing partitions"
@@ -467,7 +489,7 @@ if [ -b "$output" ]; then
     write_partitions_to_device || exit 1
 else
     write_partitions_to_image || exit 1
-    if ! sgdisk "$output" --verify >/dev/null 2>&1; then
+    if ! sgdisk "$output" --verify >${SUBTOOL_OUT} 2>&1; then
 	echo "ERR: verification failed for $output" >&2
 	exit 1
     fi
