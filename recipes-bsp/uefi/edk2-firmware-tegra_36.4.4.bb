@@ -13,8 +13,16 @@ inherit l4t_bsp deploy ${TEGRA_UEFI_SIGNING_CLASS}
 EDK2_PLATFORM = "${@'JetsonMinimal' if bb.utils.to_boolean(d.getVar('TEGRA_UEFI_MINIMAL')) else 'Jetson'}"
 EDK2_PLATFORM_DSC = "Platform/NVIDIA/NVIDIA.common.dsc"
 EDK2_BIN_NAME = "uefi_jetson.bin"
+# Optionaly build with additional prints for debug purposes
+# See possible settings in https://github.com/NVIDIA/edk2-nvidia/blob/main/Platform/NVIDIA/NVIDIA.common.dsc.inc
+EDK2_PCD_DEBUG_PRINT_ERROR_LEVEL ?= ""
 
 SRC_URI += "file://nvbuildconfig.py"
+
+do_patch[postfuncs] += "${@'apply_debug_options' if d.getVar('EDK2_PCD_DEBUG_PRINT_ERROR_LEVEL') != '' else ''}"
+apply_debug_options() {
+    sed -i -e"s/\(\s.gEfiMdePkgTokenSpaceGuid\.PcdDebugPrintErrorLevel|\).*/\1${EDK2_PCD_DEBUG_PRINT_ERROR_LEVEL}/" ${S_EDK2_NVIDIA}/Platform/NVIDIA/NVIDIA.common.dsc.inc
+}
 
 do_configure:append() {
     ${PYTHON} ${UNPACKDIR}/nvbuildconfig.py ${S_EDK2_NVIDIA}/Platform/NVIDIA/Kconfig ${S_EDK2_NVIDIA}/Platform/NVIDIA/${EDK2_PLATFORM}/Jetson.defconfig ${B}/nvidia-config/Jetson/.config ${B}/nvidia-config/Jetson/config.dsc.inc
