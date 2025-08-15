@@ -33,6 +33,9 @@ SRCREV_FORMAT = "edk2_edk2-platforms_edk2-non-osi_edk2-nvidia_edk2-nvidia-non-os
 SRC_URI += "file://0002-Fix-RCM-boot-detection.patch;patchdir=../edk2-nvidia"
 SRC_URI += "file://0003-L4TLauncher-allow-for-empty-missing-APPEND-line-in-e.patch;patchdir=../edk2-nvidia"
 
+# Include overlays backport for JP5 branches if specifified in configuration
+SRC_URI += "${@'file://0005-feat-support-configurable-rootfs-DTB-overlays.patch;patchdir=../edk2-nvidia' if bb.utils.to_boolean(d.getVar('USE_OVERLAYS_IN_EXTLINUX')) else ''}"
+
 # edk2
 SRC_URI += "file://0001-Use-bfd-linker.patch;patchdir=../edk2"
 

@@ -1,0 +1,182 @@
+From c1faceddafe5e940afd24f5683d74c07edc85ebe Mon Sep 17 00:00:00 2001
+From: Bob Morgan <bobm@nvidia.com>
+Date: Mon, 27 Mar 2023 17:20:41 -0600
+Subject: [PATCH] feat: support configurable rootfs DTB overlays
+
+Support optional OVERLAYS list of rootfs overlay paths in extlinux.conf.
+
+Upstream-Status: Backport [r36.2]
+
+cherry-pick from From [1]
+1: https://github.com/NVIDIA/edk2-nvidia/commit/23dd70a3f1aba71a4a015885ee4aaebe532eb95b
+
+Signed-off-by: Bob Morgan <bobm@nvidia.com>
+Reviewed-by: Ashish Singhal <ashishsingha@nvidia.com>
+Signed-off-by: Dan Walkes <danwalkes@trellis-logic.com>
+---
+ .../Application/L4TLauncher/L4TLauncher.c     | 80 +++++++++++++++++++
+ .../Application/L4TLauncher/L4TLauncher.h     |  2 +
+ .../Application/L4TLauncher/L4TLauncher.inf   |  1 +
+ 3 files changed, 83 insertions(+)
+
+diff --git a/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.c b/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.c
+index 0cbf9eea..9c60cfdc 100644
+--- a/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.c
++++ b/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.c
+@@ -42,6 +42,7 @@
+ #include <libfdt.h>
+ #include <Library/PlatformResourceLib.h>
+ #include <Library/ResetSystemLib.h>
++#include <Library/TegraDeviceTreeOverlayLib.h>
+ #include "L4TLauncher.h"
+ #include "L4TRootfsValidation.h"
+ 
+@@ -1241,6 +1242,11 @@ ProcessExtLinuxConfig (
+           continue;
+         }
+ 
++        Status = CheckCommandString (CleanLine, EXTLINUX_KEY_OVERLAYS, &BootConfig->BootOptions[BootConfig->NumberOfBootOptions-1].Overlays);
++        if (!EFI_ERROR (Status)) {
++          continue;
++        }
++
+         Status = CheckCommandString (CleanLine, EXTLINUX_KEY_APPEND, &BootConfig->BootOptions[BootConfig->NumberOfBootOptions-1].BootArgs);
+         if (!EFI_ERROR (Status)) {
+           CbootArg = StrStr (BootConfig->BootOptions[BootConfig->NumberOfBootOptions-1].BootArgs, EXTLINUX_CBOOT_ARG);
+@@ -1287,6 +1293,10 @@ ProcessExtLinuxConfig (
+     if (BootConfig->BootOptions[Index].LinuxPath != NULL) {
+       PathCleanUpDirectories (BootConfig->BootOptions[Index].LinuxPath);
+     }
++
++    if (BootConfig->BootOptions[Index].Overlays != NULL) {
++      PathCleanUpDirectories (BootConfig->BootOptions[Index].Overlays);
++    }
+   }
+ 
+   if (BootConfig->NumberOfBootOptions == 0) {
+@@ -1403,6 +1413,13 @@ ExtLinuxBoot (
+   EFI_DEVICE_PATH_PROTOCOL   *KernelDevicePath = NULL;
+   EFI_HANDLE                 KernelHandle      = NULL;
+   EFI_LOADED_IMAGE_PROTOCOL  *ImageInfo;
++  VOID                       *OverlayBuffer = NULL;
++  UINTN                      OverlaySize;
++  CHAR16                     *Overlays = NULL;
++  CHAR16                     *OverlayPath;
++  UINTN                      Index;
++  CHAR8                      SWModule[] = "kernel";
++  INTN                       FdtStatus;
+ 
+   // Process Args if present
+   if (BootOption->BootArgs != NULL) {
+@@ -1478,6 +1495,59 @@ ExtLinuxBoot (
+       goto Exit;
+     }
+ 
++    if (BootOption->Overlays != NULL) {
++      DEBUG ((DEBUG_INFO, "%a: applying overlays %s\r\n", __FUNCTION__, BootOption->Overlays));
++      Overlays = AllocateCopyPool (StrSize (BootOption->Overlays) * sizeof (CHAR16), BootOption->Overlays);
++      if (Overlays == NULL) {
++        Status = EFI_OUT_OF_RESOURCES;
++        goto Exit;
++      }
++
++      OverlayPath = Overlays;
++      for (Index = 0; Index < StrSize (BootOption->Overlays) / sizeof (CHAR16); Index++) {
++        switch (Overlays[Index]) {
++          case L',':
++          case L'\0':
++            break;
++          default:
++            continue;
++        }
++
++        Overlays[Index] = L'\0';
++
++        DEBUG ((DEBUG_INFO, "%a: OverlayPath '%s'\r\n", __FUNCTION__, OverlayPath));
++        Status = OpenAndReadFileToBuffer (
++                   DeviceHandle,
++                   OverlayPath,
++                   NULL,
++                   &OverlayBuffer,
++                   &OverlaySize
++                   );
++        if (EFI_ERROR (Status)) {
++          ErrorPrint (L"%a: Failed to load overlay %s: %r\r\n", __FUNCTION__, OverlayPath, Status);
++          goto Exit;
++        }
++
++        FdtStatus = fdt_check_header (OverlayBuffer);
++        if (FdtStatus != 0) {
++          ErrorPrint (L"%a: Overlay %s bad header: %lld\r\n", __FUNCTION__, OverlayPath, FdtStatus);
++          goto Exit;
++        }
++
++        Status = ApplyTegraDeviceTreeOverlay (ExpandedFdtBase, OverlayBuffer, SWModule);
++        if (EFI_ERROR (Status)) {
++          goto Exit;
++        }
++
++        FreePool (OverlayBuffer);
++        OverlayBuffer = NULL;
++        OverlayPath   = &Overlays[Index + 1];
++      }
++
++      FreePool (Overlays);
++      Overlays = NULL;
++    }
++
+     Status = gBS->InstallConfigurationTable (&gFdtTableGuid, ExpandedFdtBase);
+     if (EFI_ERROR (Status)) {
+       ErrorPrint (L"%a: Failed to install fdt\r\n", __FUNCTION__);
+@@ -1607,6 +1677,16 @@ Exit:
+     NewArgs = NULL;
+   }
+ 
++  if (Overlays != NULL) {
++    FreePool (Overlays);
++    Overlays = NULL;
++  }
++
++  if (OverlayBuffer != NULL) {
++    FreePool (OverlayBuffer);
++    OverlayBuffer = NULL;
++  }
++
+   return Status;
+ }
+ 
+diff --git a/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.h b/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.h
+index 15957ad2..d5ebed40 100644
+--- a/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.h
++++ b/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.h
+@@ -46,6 +46,7 @@
+ #define EXTLINUX_KEY_INITRD      L"INITRD"
+ #define EXTLINUX_KEY_FDT         L"FDT"
+ #define EXTLINUX_KEY_APPEND      L"APPEND"
++#define EXTLINUX_KEY_OVERLAYS    L"OVERLAYS"
+ 
+ #define EXTLINUX_CBOOT_ARG  L"${cbootargs}"
+ 
+@@ -58,6 +59,7 @@ typedef struct {
+   CHAR16    *DtbPath;
+   CHAR16    *InitrdPath;
+   CHAR16    *BootArgs;
++  CHAR16    *Overlays;
+ } EXTLINUX_BOOT_OPTION;
+ 
+ typedef struct {
+diff --git a/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.inf b/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.inf
+index eb2c5f84..b9d49d1d 100644
+--- a/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.inf
++++ b/Silicon/NVIDIA/Application/L4TLauncher/L4TLauncher.inf
+@@ -48,6 +48,7 @@
+   TimerLib
+   OpteeNvLib
+   TegraPlatformInfoLib
++  TegraDeviceTreeKernelOverlayLib
+ 
+ [Guids]
+   gNVIDIAPublicVariableGuid
+-- 
+2.34.1
+
