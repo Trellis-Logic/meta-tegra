@@ -24,6 +24,12 @@
 #     in this bbclass.) ** NB: In L4T R35.2.1, a bug in the L4TLauncher
 #     code also requires this line to be present.
 #  8. L4TLauncher uses 'LINUX' instead of 'KERNEL' for the kernel image.
+#  9. Instead of UBOOT_EXTLINUX_FDTDIR (which supports and defaults to
+#     a relative path) we use fixed paths prefixed by ${L4T_EXTLINUX_BASEDIR}
+#     (defaulted to /boot) for  kernel image, fdt, and fdt overlays.
+#     The extlinux.conf is located under this directory as well.
+#     This is necessary since the logic in L4TLauncher does not suport
+#     relative paths.
 #
 # External variables:
 #   See uboot-extlinux-config.bbclass for the basic set.
@@ -35,10 +41,15 @@
 
 UBOOT_EXTLINUX_LABELS ??= "primary"
 UBOOT_EXTLINUX_FDT ??= ""
-UBOOT_EXTLINUX_KERNEL_IMAGE ??= "/boot/${KERNEL_IMAGETYPE}"
+UBOOT_EXTLINUX_FDTOVERLAYS ??= ""
+# Unique to L4T, we don't use relative paths in extlinux.conf
+L4T_EXTLINUX_BASEDIR ??= "/boot"
+UBOOT_EXTLINUX_KERNEL_IMAGE ??= "${L4T_EXTLINUX_BASEDIR}/${KERNEL_IMAGETYPE}"
 UBOOT_EXTLINUX_KERNEL_ARGS ??= ""
 UBOOT_EXTLINUX_MENU_DESCRIPTION_primary ??= "${DISTRO_NAME}"
 UBOOT_EXTLINUX_MENU_TITLE ??= "L4T boot options"
+# Handle backwards compatible setting of UBOOT_EXTLINUX_FDT as a full path to /boot/${DTBFILE}
+L4T_UBOOT_EXTLINUX_FDT_COMPAT = "${@d.getVar('UBOOT_EXTLINUX_FDT') if not d.getVar('UBOOT_EXTLINUX_FDT').startswith('/boot/') else d.getVar('UBOOT_EXTLINUX_FDT').replace('/boot/','')}"
 
 UBOOT_EXTLINUX_CONFIG = "${B}/extlinux.conf"
 
@@ -88,11 +99,19 @@ python do_create_extlinux_config() {
 
         kernel_image = localdata.getVar('UBOOT_EXTLINUX_KERNEL_IMAGE')
 
-        fdt = localdata.getVar('UBOOT_EXTLINUX_FDT')
+        fdt = localdata.getVar('L4T_UBOOT_EXTLINUX_FDT_COMPAT')
+        overlays = localdata.getVar('UBOOT_EXTLINUX_FDTOVERLAYS')
         if fdt:
-            fdt = '\tFDT ' + fdt + '\n'
+            if d.getVar('UBOOT_EXTLINUX_FDT').startswith('/boot'):
+                bb.warn("Please remove /boot/ prefix from UBOOT_EXTLINUX_FDT and use file name like ${DTBFILE} to conform with uboot syntax")
+            fdt = '\tFDT ' + localdata.getVar('L4T_EXTLINUX_BASEDIR') + '/' + fdt + '\n'
+            if overlays:
+                overlay_paths = ",".join([ localdata.getVar('L4T_EXTLINUX_BASEDIR') + "/" + overlay for overlay in overlays.split(" ") ])
+                overlays = '\tOVERLAYS ' + overlay_paths + '\n'
+        elif overlays:
+            bb.fatal('UBOOT_EXTLINUX_FDTOVERLAYS set to % when UBOOT_EXTLINUX_FDT is not set.  This is not a supported config' % overlays)
 
-        cfg += 'LABEL %s\n\tMENU LABEL %s\n\tLINUX %s\n%s' % (label, menu_description, kernel_image, fdt)
+        cfg += 'LABEL %s\n\tMENU LABEL %s\n\tLINUX %s\n%s%s' % (label, menu_description, kernel_image, fdt, overlays)
 
         initrd = localdata.getVar('UBOOT_EXTLINUX_INITRD')
         if initrd:
@@ -120,7 +139,7 @@ python do_create_extlinux_config() {
     except OSError:
         bb.fatal('Unable to open %s' % (cfile))
 }
-UBOOT_EXTLINUX_VARS = "CONSOLE MENU_DESCRIPTION KERNEL_IMAGE FDT KERNEL_ARGS INITRD"
+UBOOT_EXTLINUX_VARS = "CONSOLE MENU_DESCRIPTION KERNEL_IMAGE FDT FDTOVERLAYS KERNEL_ARGS INITRD"
 do_create_extlinux_config[vardeps] += "${@' '.join(['UBOOT_EXTLINUX_%s_%s' % (v, l) for v in d.getVar('UBOOT_EXTLINUX_VARS').split() for l in d.getVar('UBOOT_EXTLINUX_LABELS').split()])}"
 do_create_extlinux_config[vardepsexclude] += "OVERRIDES"
 

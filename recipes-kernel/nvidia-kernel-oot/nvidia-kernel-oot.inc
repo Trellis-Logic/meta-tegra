@@ -51,6 +51,7 @@ do_compile() {
 }
 
 do_sign_dtbs() {
+    # force rerun again
     for dtbf in ${KERNEL_DEVICETREE}; do
         local dtb="${B}/kernel-devicetree/generic-dts/dtbs/${dtbf}"
         if [ -e "$dtb" ]; then
