@@ -1,0 +1,464 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Flashing the Dev Kit - OE4T Meta Tegra</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-3f44e17f.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-c4cd43e2.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">OE4T Meta Tegra</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <p>This total-beginner’s guide will walk you through the process of flashing a newly-generated image your Jetson development kit! The instructions
+here are for branches based off L4T R32.4.3 and later. (For earlier releases, click the revisions count, under the title, to go back to an
+earlier revision of the page.)</p>
+<h1 id="initrd-flashing"><a class="header" href="#initrd-flashing">Initrd Flashing</a></h1>
+<p>For branches based off L4T R35.1.0 and later (<code>master</code>, <code>kirkstone</code>, and <code>langdale</code>), and the <code>kirkstone-l4t-r32.7.x</code> branch, an alternative flashing process (called “initrd flashing”) is available, which supports flashing to a rootfs (<code>APP</code> partition) on an external storage device.  See <a href="https://github.com/OE4T/meta-tegra/wiki/initrd-flashing-support">this page</a> for more information.</p>
+<p>The table below helps outline the flashing mechanism(s) supported depending on target root filesystem storage for all recent branches (<code>kirkstone-l4t-r32.7.x</code> and later)</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Target Rootfs Storage</th><th>Flashing method</th></tr>
+</thead>
+<tbody>
+<tr><td>on-board eMMC</td><td><code>doflash.sh</code> or <a href="https://github.com/OE4T/meta-tegra/wiki/initrd-flashing-support">initrd-flash</a></td></tr>
+<tr><td>SDCard</td><td><code>doflash.sh</code> or <a href="https://github.com/OE4T/meta-tegra/wiki/initrd-flashing-support">initrd-flash</a>. <code>dosdcard.sh</code> may be used for subsequent programming after initial bootloader programming with <code>doflash.sh</code> or <code>initrd-flash</code>.</td></tr>
+<tr><td>NVMe</td><td><a href="https://github.com/OE4T/meta-tegra/wiki/initrd-flashing-support">initrd-flash</a></td></tr>
+<tr><td>M.2 drive or SATA drive</td><td><a href="https://github.com/OE4T/meta-tegra/wiki/initrd-flashing-support">initrd-flash</a></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<p>Before you get started, you’ll need the following:</p>
+<ul>
+<li>
+<p>A suitable USB cable. For most Jetsons, this is a type A to micro-B cable, but for the AGX Xavier and AGX Orin dev kits, you’ll need a USB-C cable (or a USB-C to type A cable, if your development host does not have USB-C ports). As NVIDIA mentions in their documentation, it’s important to use a good-quality cable for successful flashing.</p>
+</li>
+<li>
+<p>A free USB port on your development machine. The flashing tools work best if you can connect directly to a port on your system,
+rather than using a USB hub.</p>
+</li>
+<li>
+<p>For L4T R32.5.0 and later, you must have the <code>dtc</code> command in your PATH, since the NVIDIA tools use that command when preparing
+the boot files for some of the Jetsons. On Ubuntu systems, that command is provided by the <code>device-tree-compiler</code> package.</p>
+</li>
+<li>
+<p>For L4T R35 and later, you must have the GNU <code>cpp</code> command in your PATH (and <strong>not</strong> the LLVM/Clang <code>cpp</code>, see #1959).</p>
+</li>
+</ul>
+<p>While not required, a serial console connection is very useful, particularly with troubleshooting flashing problems, since
+the bootloaders only write messages to the serial console.</p>
+<p>Please note, also, that flashing typically does <strong>not</strong> work from a virtual machine. You should be running the flashing tools directly on a Linux host.</p>
+<h3 id="for-sdcard-based-development-kits"><a class="header" href="#for-sdcard-based-development-kits">For SDcard-based development kits</a></h3>
+<p>If you have a Jetson Nano or Jetson Xavier NX development kit, you’ll need a good-quality MicroSDHC/SDXC card, preferably
+16GB or larger. Higher-speed cards (at least UHS-I) are preferred, particularly if you plan to program the SDcard through
+an SDcard reader/writer on your development host. The reader/writer should be high-speed also, and connected through a
+high-speed I/O interface (e.g., USB 3.1).</p>
+<p>Programming an SDcard in a reader/writer attached to your host is also faster (<em>much</em> faster) if you have the <code>bmaptool</code>
+command in your PATH. On Ubuntu systems, that command is provided by the <code>bmap-tools</code> package. (But note that <code>bmaptool</code>
+requires <code>sudo</code>.)</p>
+<p>The Jetson AGX Xavier development kit also supports booting from a MicroSD card instead of the on-board eMMC, with some
+limitations.</p>
+<h3 id="avoiding-sudo"><a class="header" href="#avoiding-sudo">Avoiding sudo</a></h3>
+<p>You can avoid using <code>sudo</code> during the flashing/SDcard writing process (except for using <code>bmaptool</code>, as noted above)
+by adding yourself to suitable groups and installing a <code>udev</code> rules file to give yourself access to the Jetsons via
+USB. The following instructions are for Ubuntu; other distros may have other groups or require additional setup.</p>
+<ul>
+<li>For SDcard writing, add yourself to group <code>disk</code>.</li>
+<li>For USB flashing, add yourself to group <code>plugdev</code>,</li>
+</ul>
+<p>You can use <a href="https://github.com/OE4T/tegra-demo-distro/blob/master/layers/meta-tegrademo/scripts/setup-udev-rules">this script</a> to
+install the <code>udev</code> rules that grant the <code>plugdev</code> group write access to the Jetson devices when they are connected
+in recovery mode to your development host.</p>
+<p>Note that after changing your group membership and/or <code>udev</code> rules, you may need to reboot your development
+host for the changes to take effect. It’s worth this extra setup, though, to eliminate the need for root access.</p>
+<h2 id="building-a-tegraflash-package"><a class="header" href="#building-a-tegraflash-package">Building a tegraflash package</a></h2>
+<p>All of the Jetson machine configurations add a <code>tegraflash</code> image type by default, which generates a compressed tarball
+contains all of the files, tools, and scripts for flashing the device and/or creating a fully-populated SDcard. If you’ve
+successfully run a bitbake build of an image, you should see a file called</p>
+<pre><code>&lt;image-type&gt;-${MACHINE}.tegraflash.tar.gz
+</code></pre>
+<p>or, in more recent branches,</p>
+<pre><code>&lt;image-type&gt;-${MACHINE}.rootfs.tegraflash.tar.&lt;compression&gt;
+</code></pre>
+<p>in the directory <code>$BUILDDIR/tmp/deploy/images/${MACHINE}</code>. where <code>&lt;compression&gt;</code> could be either <code>gz</code> or <code>zst</code>, depending on the branch you are using (zstd replaced gzip as the default compression method in Feb 2025).</p>
+<h3 id="using-an-sdcard-with-the-jetson-agx-xavier"><a class="header" href="#using-an-sdcard-with-the-jetson-agx-xavier">Using an SDcard with the Jetson AGX Xavier</a></h3>
+<p>By default, the <code>tegraflash</code> package for the AGX Xavier is set up for flashing the on-board eMMC. If you want to
+boot your Xavier off an SDcard instead, you should add the following to your build configuration (e.g., in
+<code>$BUILDDIR/conf/local.conf</code>):</p>
+<pre><code>  TEGRA_ROOTFS_AND_KERNEL_ON_SDCARD = "1"
+  ROOTFSPART_SIZE = "15032385536"
+</code></pre>
+<p>The <code>ROOTFSPART_SIZE</code> setting is for a 16GB SDcard; adjust the size as needed for a larger or smaller card.</p>
+<p>With these settings in place, the resulting <code>tegraflash</code> package supports flashing the bootloader file to
+the on-board eMMC, moving the kernel, device tree, and rootfs on the SDcard. Note that this is <em>only</em> supported
+for the Jetson AGX Xavier, and that SDcard booting <em>does not</em> support the bootloader redundancy features.</p>
+<p>With this configuration, there will be two scripts in the <code>tegraflash</code> package: <code>dosdcard.sh</code> for writing the
+SDcard, and <code>doflash.sh</code> for flashing the bootloader partitions to the eMMC.  Run the <code>dosdcard.sh</code> script to
+format and write the SDcard on your development host, insert the SDcard into the slot on the AGX Xavier dev kit,
+then use the <code>doflash.sh</code> to flash the bootloader partitions. (Unlike for Xavier NX devices, you <em>must</em> perform
+these steps separately.)</p>
+<h2 id="unpacking-the-tegraflash-package"><a class="header" href="#unpacking-the-tegraflash-package">Unpacking the tegraflash package</a></h2>
+<p>To flash your Jetson, or create an SDcard image, create an empty directory and use the <code>tar</code> command to
+unpack the <code>tegraflash</code> package into it:</p>
+<pre><code>  $ mkdir ~/tegraflash
+  $ cd ~/tegraflash
+  $ tar -x -f $BUILDDIR/tmp/deploy/images/${MACHINE}/&lt;image-type&gt;-${MACHINE}.tegraflash.tar.gz
+</code></pre>
+<p>Be sure to use the <code>tar</code> command from a terminal window. Some users have reported issues with incorrect
+results when extracting files using GUI-based tools.</p>
+<h2 id="setting-up-for-flashing"><a class="header" href="#setting-up-for-flashing">Setting up for flashing</a></h2>
+<ol>
+<li>Start with your Jetson powered off. (NVIDIA recommends connecting hardware only while the device is powered off.)</li>
+<li>Connect the USB cable from your Jetson to your development host.</li>
+<li>Insert an SDcard into the slot on the module, if needed.</li>
+<li>Power on the Jetson and put it into recovery mode.</li>
+</ol>
+<p>For SDcard-based Jetsons (Nano and Xavier NX), you have the option of programming the SDcard contents
+either during USB flashing or separately using an SDcard reader/writer on your development host. If
+you program the SDcard separately, perform that step first and insert the already-programmed card
+into the slot on the module in step 3 above. (When using an SDcard with the AGX Xavier, you <em>must</em>
+pre-program the SDcard first.)</p>
+<p>To verify that the device is in recovery mode and that the USB cable is connected properly, use the
+following command:</p>
+<pre><code>  $ lsusb -d 0955:
+  Bus 001 Device 006: ID 0955:7c18 NVIDIA Corp. T186 [TX2 Tegra Parker] recovery mode
+</code></pre>
+<p>If you don’t see your Jetson listed, double-check the cable and try the recovery mode sequence
+again.</p>
+<h3 id="recovery-mode-jumpers-and-buttons"><a class="header" href="#recovery-mode-jumpers-and-buttons">Recovery mode jumpers and buttons</a></h3>
+<p>The different Jetson develpoment kits have different mechanisms for entering recovery mode.</p>
+<h4 id="jetson-tx1-and-tx2-development-kits"><a class="header" href="#jetson-tx1-and-tx2-development-kits">Jetson TX1 and TX2 development kits</a></h4>
+<p>Press <em>and hold</em> the REC (“recovery”) button, press and release the RST (“reset”) button. Continue
+to hold the REC button for 3-4 seconds, then release.
+[[images/TX1-TX2-Devkit-RecoveryMode-Button.jpg|alt=TX1-TX2 buttons]]</p>
+<h4 id="jetson-agx-xavier-development-kit"><a class="header" href="#jetson-agx-xavier-development-kit">Jetson AGX Xavier development kit</a></h4>
+<p>Press <em>and hold</em> the center button, and press and release the reset button (on the right).
+[[images/AGX-Xavier-RecoveryMode-Button.jpg|alt=AGX Xavier buttons]]</p>
+<h4 id="jetson-orin-development-kit"><a class="header" href="#jetson-orin-development-kit">Jetson Orin development kit</a></h4>
+<p>Press <em>and hold</em> the center button. Then plug in the power supply. Release the center button.  Note that it can take 10-15 seconds for the device to fully enter recovery mode and export its serial console after power up.</p>
+<h4 id="all-jetson-nano-xavier-nx-development-kits"><a class="header" href="#all-jetson-nano-xavier-nx-development-kits">All Jetson Nano, Xavier NX development kits</a></h4>
+<p>Connect a jumper between the 3rd and 4th pins from the right hand side of “button header”
+underneath the back of the module (FRC and GND; see the labeling on the underside of the
+carrier board). The module will power up in recovery mode automatically.
+[[images/Nano-NX-RecoveryMode-Jumper.jpg|alt=Nano-Xavier pins]]</p>
+<p>For the older Jetson Nano rev A02 carrier boards, the FRC pin is in the 8-pin header next to
+the module, beside the MIPI-CSI camera interface. The pins are labeled on the underside of
+the carrier board.
+<img src="https://user-images.githubusercontent.com/227565/112763078-4475dd80-8fc0-11eb-8670-a2d13f0c5083.png" alt="Nano A02 pins"></p>
+<h2 id="writing-an-sdcard"><a class="header" href="#writing-an-sdcard">Writing an SDcard</a></h2>
+<p>If you want to program the SDcard contents directly onto the card from your development host:</p>
+<ol>
+<li>Insert the card into the reader/writer on your host.</li>
+<li><em>Carefully</em> determine the device name for the card. <strong>Using the wrong device name could destroy your host’s filesystems.</strong></li>
+<li>Run the <code>dosdcard.sh</code> script to program the card.</li>
+</ol>
+<p>Here is an example, for a system where <code>/dev/sda</code> is the device name of the card:</p>
+<pre><code>$ ./dosdcard.sh /dev/sda
+</code></pre>
+<p>Remember to use <code>sudo</code>, if needed. The script will ask you to confirm before writing (which you can
+skip by adding <code>-y</code> to the command above).</p>
+<h3 id="creating-an-sdcard-image"><a class="header" href="#creating-an-sdcard-image">Creating an SDcard image</a></h3>
+<p>You can also create an SDcard image file that can later be written to one or more cards:</p>
+<pre><code>$ ./dosdcard.sh &lt;filename&gt;
+</code></pre>
+<p>The resulting file will be quite large, and writing the image can take a long time.</p>
+<h3 id="spi-flash-on-sdcard-based-kits"><a class="header" href="#spi-flash-on-sdcard-based-kits">SPI flash on SDcard-based kits</a></h3>
+<p>The SDcard-based development kits store some (in some cases, all) of the bootloader
+content on a SPI flash device on the Jetson module. You must ensure that the bootloader content
+in this flash device is compatible with the layout on the SDcard you create, since the
+early-stage boot data is programmed with the locations/sizes of SDcard-resident partitions,
+and cannot read the GPT partition table at runtime. To do this, you must perform a USB flash
+to program the SPI flash <strong>at least once</strong> on you development kit, by following the
+steps in the next section.</p>
+<p>Once the SPI flash has been programmed correctly, you should be able to update just
+by writing new SDcard images unless you make changes in your build that affect one
+of the boot-related partitions residing in the SPI flash, or change the flash layout
+XML in a way that alters the location/size of one of the SDcard-resident boot partitions
+(if there are any).</p>
+<h2 id="flashing-the-jetson"><a class="header" href="#flashing-the-jetson">Flashing the Jetson</a></h2>
+<p>Once everything is set up, use the <code>doflash.sh</code> script to program the Jetson:</p>
+<pre><code>$ ./doflash.sh
+</code></pre>
+<p>Remember to use <code>sudo</code> to invoke the script, if needed.  If successful, the Jetson will be rebooted
+into your just-built image automatically after flashing is complete.</p>
+<p>For SDcard-based development kits, you can program <em>just</em> the boot partitions in the SPI flash with:</p>
+<pre><code>$ ./doflash.sh --spi-only
+</code></pre>
+<p>You should insert your programmed SDcard in the slot on the Jetson before performing this step, so
+when the Jetson reboots after the flashing process completes, it will boot into your image.</p>
+<h2 id="automating-unpack-and-flash-steps"><a class="header" href="#automating-unpack-and-flash-steps">Automating Unpack and Flash Steps</a></h2>
+<p>You can use <a href="https://github.com/OE4T/tegra-demo-distro/blob/master/layers/meta-tegrademo/scripts/oe4t-tegraflash-deploy">this script</a> if desired to automate the steps associated with unpacking and running the <code>./doflash.sh</code> script for tegraflashing.</p>
+<h2 id="issues-during-flashing"><a class="header" href="#issues-during-flashing">Issues during flashing</a></h2>
+<p>If you run <code>sudo ./doflash.sh</code> and flashing is started but then it hang in some step like:</p>
+<pre><code>[   1.7586 ] Flashing the device
+[   1.7611 ] tegradevflash --pt flash.xml.bin --storageinfo storage_info.bin --create
+[   1.7636 ] Cboot version 00.01.0000
+[   1.7659 ] Writing partition GPT with gpt.bin
+[   1.7666 ] [................................................] 100%
+[   1.7707 ] Writing partition PT with flash.xml.bin
+[  15.9892 ] [................................................] 100%
+[  15.9937 ] Writing partition NVC with nvtboot.bin.encrypt
+[  16.2433 ] [................................................] 100%
+[  16.2569 ] Writing partition NVC_R with nvtboot.bin.encrypt
+[  26.2706 ] [................................................] 100%
+[  26.2877 ] Writing partition VER_b with jetson-nano-qspi-sd_bootblob_ver.txt
+[  36.3103 ] [................................................] 100%
+[  36.3202 ] Writing partition VER with jetson-nano-qspi-sd_bootblob_ver.txt
+[  36.5833 ] [................................................] 100%
+[  36.5927 ] Writing partition APP with test-image.ext4.img
+[  36.8548 ] [................................................] 100%
+</code></pre>
+<p>or if e.g following:</p>
+<pre><code>[   1.9394 ] 00000007: Written less bytes than expected
+[  21.7219 ] 
+Error: Return value 7
+Command tegradevflash --pt flash.xml.bin --storageinfo storage_info.bin --create
+</code></pre>
+<p>It’s good to connect serial console which in above case will print something like:</p>
+<pre><code>[0020.161] device_write_gpt: Erasing boot device spiflash0
+[0039.824] Erasing Storage Device
+[0039.827] Writing protective mbr
+[0039.833] Error in command_complete 18003 int_status
+[0039.840] Error in command_complete 18003 int_status
+[0039.847] Error in command_complete 18003 int_status
+[0039.852] sending the command failed 0xffffffec in sdmmc_send_command at 109
+[0039.859] switch command send failed 0xffffffec in sdmmc_send_switch_command at 470
+[0039.866] switch cmd send failed 0xffffffec in sdmmc_select_access_region at 1301
+[0039.876] Error in command_complete 18001 int_status
+[0039.883] Error in command_complete 18001 int_status
+[0039.890] Error in command_complete 18001 int_status
+[0039.895] sending the command failed 0xffffffec in sdmmc_send_command at 109
+[0039.902] setting block length failed 0xffffffec in sdmmc_block_io at 945
+[0039.909] block I/O failed 0xffffffec in sdmmc_io at 1215
+[0039.914] block write failed 0xffffffec in sdmmc_bdev_write_block at 178
+[0039.921] device_write_gpt: failed to write protective mbr
+[0039.926] Number of bytes written -20
+[0039.930] Written less bytes than expected with error 0x7
+[0039.935] Write command failed for GPT partition
+</code></pre>
+<p>Things to try:</p>
+<ul>
+<li>! USB cable must be plugged directly to PC host (don’t use USB hub otherwise issues like described above will appear) !</li>
+<li>verify USB cable quality (try to use another one)</li>
+<li>power off/on device and try flashing again</li>
+</ul>
+<h1 id="general-tegraflash-troubleshooting"><a class="header" href="#general-tegraflash-troubleshooting">General Tegraflash Troubleshooting</a></h1>
+<p>See https://github.com/OE4T/meta-tegra/wiki/Tegraflash-Troubleshooting</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../../index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../../index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>
