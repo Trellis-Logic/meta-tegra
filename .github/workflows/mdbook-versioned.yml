@@ -23,30 +23,12 @@ jobs:
         run: |
           mdbook build --dest-dir "./${{ github.ref_name }}"
 
-      # Generate versions.json from the built mdBook folders
-      - name: Generate versions.json
-        working-directory: docs/mdbook
-        run: |
-          echo "[" > versions.json
-          first=true
-          for d in */ ; do
-              d=${d%/}
-              # Skip files like index.html if present
-              [[ -f "$d" ]] && continue
-              [[ "$d" == "src" ]] && continue
-              if [ "$first" = true ]; then first=false; else echo "," >> versions.json; fi
-              # Use folder name as display name (modify if you want prettier names)
-              echo "{ \"folder\": \"$d\", \"name\": \"$d\" }" >> versions.json
-          done
-          echo "]" >> versions.json
-
       # Upload book artifact for deploy job
       - name: Upload book artifact
         uses: actions/upload-artifact@v4
         with:
           name: book
           path: |
-            docs/mdbook/versions.json
             docs/mdbook/${{ github.ref_name }}
 
   deploy:
