@@ -1,0 +1,8 @@
+[book]
+title = "OE4T Meta Tegra"
+authors = ["Matt Madison", "Dan Walkes"]
+language = "en"
+
+[output.html]
+additional-css = ["src/css/custom.css"]
+additional-js = ["src/js/version-dropdown.js"]
