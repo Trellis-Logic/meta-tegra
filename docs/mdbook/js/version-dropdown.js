@@ -1,4 +1,4 @@
-(function() {
+(function () {
     async function addVersionDropdown(menuBar) {
         if (document.querySelector('#mdbook-version-select')) return;
 
@@ -18,28 +18,49 @@
 
         if (!versions.length) return;
 
-        // Create container
+        // ---- Container (material-style) ----
         const container = document.createElement('div');
         container.id = 'mdbook-version-container';
         container.style.cssText = `
-            display: inline-block;
-            margin-left: 1rem;
-            vertical-align: middle;
+            display: flex;
+            align-items: center;
+            margin-right: 0.75rem;
         `;
 
-        // Create select
+        // Optional label (matches material subtle text)
+        const label = document.createElement('span');
+        label.textContent = 'Version';
+        label.style.cssText = `
+            font-size: 0.85rem;
+            opacity: 0.85;
+            margin-right: 0.4rem;
+            white-space: nowrap;
+        `;
+        container.appendChild(label);
+
+        // ---- Select (material-style) ----
         const select = document.createElement('select');
         select.id = 'mdbook-version-select';
         select.style.cssText = `
-            padding: 0.3rem 0.5rem;
+            height: 2rem;
+            padding: 0 0.5rem;
             font-size: 0.9rem;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            background-color: #0b3954;
-            color: white;
-            font-weight: bold;
+            border-radius: 4px;
+            border: 1px solid var(--theme-border-color);
+            background-color: var(--theme-popup-bg);
+            color: var(--theme-text-color);
+            font-weight: 500;
             cursor: pointer;
+            outline: none;
         `;
+
+        // Hover / focus behavior like material
+        select.addEventListener('focus', () => {
+            select.style.borderColor = 'var(--theme-accent-color)';
+        });
+        select.addEventListener('blur', () => {
+            select.style.borderColor = 'var(--theme-border-color)';
+        });
 
         // Populate options
         versions.forEach(v => {
@@ -59,23 +80,23 @@
         }
 
         // Navigate on change
-    select.addEventListener('change', e => {
-        const selectedBranch = e.target.value.replace(/\/$/, ''); // remove trailing slash
+        select.addEventListener('change', e => {
+            const selectedBranch = e.target.value.replace(/\/$/, '');
 
-        // Current URL path: /meta-tegra/master/pagename
-        const parts = window.location.pathname.split('/');
+            // Current URL: /meta-tegra/master/page
+            const parts = window.location.pathname.split('/');
+            const repo = parts[1] || '';
+            const pagePath = parts.slice(3).join('/');
 
-        // Assume: parts[1] = repo name (meta-tegra), parts[2] = current branch
-        const repo = parts[1] || '';
-        const pagePath = parts.slice(3).join('/'); // everything after branch
-
-        // Construct new URL
-        const newUrl = `/${repo}/${selectedBranch}/${pagePath}`;
-        window.location.href = newUrl;
-    });
+            const newUrl = `/${repo}/${selectedBranch}/${pagePath}`;
+            window.location.href = newUrl;
+        });
 
         container.appendChild(select);
-        menuBar.appendChild(container);
+
+        // ---- Insert on LEFT side of menu bar ----
+        const firstControl = menuBar.querySelector('button, a');
+        menuBar.insertBefore(container, firstControl || menuBar.firstChild);
     }
 
     // Wait until the menu bar exists
@@ -89,4 +110,3 @@
 
     observer.observe(document.body, { childList: true, subtree: true });
 })();
-
