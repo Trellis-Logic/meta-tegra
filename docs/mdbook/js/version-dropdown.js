@@ -74,9 +74,7 @@
         window.location.href = newUrl;
     });
 
-        // ---- Insert on LEFT side of menu bar ----
-        const firstControl = menuBar.querySelector('button, a');
-        menuBar.insertBefore(container, firstControl || menuBar.firstChild);
+        menuBar.prepend(container)
 
     }
 
