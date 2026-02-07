@@ -21,25 +21,35 @@
         // Create container
         const container = document.createElement('div');
         container.id = 'mdbook-version-container';
+        const menuBarHeight = Math.round(menuBar.getBoundingClientRect().height);
+        const selectHeight = Math.max(menuBarHeight - 10, 32);
         container.style.cssText = `
-            display: inline-block;
-            margin-left: 1rem;
-            vertical-align: middle;
+            display: flex;
+            align-items: center;
+            margin-right: auto;
+            margin-left: 0.75rem;
+            height: ${menuBarHeight}px;
         `;
 
         // Create select
         const select = document.createElement('select');
         select.id = 'mdbook-version-select';
         select.style.cssText = `
-            padding: 0.3rem 0.5rem;
-            font-size: 0.9rem;
+            padding: 0 0.75rem;
+            font-size: 0.95rem;
+            font-family: inherit;
             border-radius: 5px;
             border: 1px solid #ccc;
             background-color: #0b3954;
             color: white;
             font-weight: bold;
             cursor: pointer;
+            height: ${selectHeight}px;
+            min-width: 12rem;
+            box-sizing: border-box;
+            line-height: 1.2;
         `;
+        container.appendChild(select);
 
         // Populate options
         versions.forEach(v => {
@@ -74,7 +84,7 @@
         window.location.href = newUrl;
     });
 
-        menuBar.prepend(container)
+        menuBar.prepend(container);
 
     }
 
@@ -89,4 +99,3 @@
 
     observer.observe(document.body, { childList: true, subtree: true });
 })();
-
