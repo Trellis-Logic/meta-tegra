@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - OE4T Meta Tegra</title>
+        <title>For L4T R35.x and later - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -175,62 +175,96 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="openembeddedyocto-bsp-layer-for-nvidia-jetson-modules"><a class="header" href="#openembeddedyocto-bsp-layer-for-nvidia-jetson-modules">OpenEmbedded/Yocto BSP layer for NVIDIA Jetson Modules</a></h1>
-<p>Jetson Linux release: R36.4.4
-JetPack release:      6.2.1</p>
-<p>Boards supported:</p>
+                        <p>While not enabled by default (except on the Jetsons that use the U-Boot bootloader), you can use the
+L4T <code>extlinux.conf</code> support in your builds.</p>
+<h1 id="for-l4t-r35x-and-later"><a class="header" href="#for-l4t-r35x-and-later">For L4T R35.x and later</a></h1>
+<p>In the <code>kirkstone</code> and later branches based on the L4T R35.x and later series of releases, set <code>UBOOT_EXTLINUX = "1"</code> to configure the build to use an <code>extlinux.conf</code> file.  (As of 14 Apr 2024, <code>"1"</code> is now the default setting in the <code>master</code> branch.)</p>
+<p>See the comments in <a href="https://github.com/OE4T/meta-tegra/blob/master/classes-recipe/l4t-extlinux-config.bbclass">l4t-extlinux-config.bbclass</a> for additional configuration settings you can use.</p>
+<h2 id="uboot_extlinux_fdt"><a class="header" href="#uboot_extlinux_fdt">UBOOT_EXTLINUX_FDT</a></h2>
+<p>The <code>UBOOT_EXTLINUX_FDT</code> setting can be set to exactly <code>UBOOT_EXTLINUX_FDT = "/boot/${DTBFILE}"</code> before https://github.com/OE4T/meta-tegra/pull/1968 or to any dtb file without full path (like <code>UBOOT_EXTLINUX_FDT = "${DTBFILE}"</code>) after https://github.com/OE4T/meta-tegra/pull/1968 and backports.</p>
+<p>When set, this adds a devicetree entry in the extlinux.conf file.  This setting is useful for easy testing of devicetree changes in the kernel and to support devicetree transitions on slot switch without capsule update.  Note that when <code>UBOOT_EXTLINUX</code> or <code>UBOOT_EXTLINUX_FDT</code> is not set, the <code>kernel-dtb</code> partitions defined in the root filesystem are ignored and the devicetree for the kernel is taken from the devicetree which is appended to the uefi image, therefore only updated when the uefi image is changed via tegraflash or capsule update.</p>
+<p><code>efivar -p --name 781e084c-a330-417c-b678-38e696380cb9-L4TDefaultBootMode</code> should return a value of <code>1</code> when using this feature. For additional context see <a href="https://matrix.to/#/!YBfWVpJwNVtkmqVCPS:gitter.im/$x-m4h9rIYnwtMOaYtEkHg0a5HFzM4-mcpjoALOGkP4Y?via=gitter.im&amp;via=matrix.org&amp;via=3dvisionlabs.com">this thread</a> in element.</p>
+<h2 id="uboot_extlinux_fdtoverlays"><a class="header" href="#uboot_extlinux_fdtoverlays">UBOOT_EXTLINUX_FDTOVERLAYS</a></h2>
+<p>The PR at https://github.com/OE4T/meta-tegra/pull/1968 adds support for specifying a list of overlays in your extlinux.conf file.  These overlays are also stored on the rootfs and applied to the kernel DTB at boot time after root slot selection.</p>
+<p>This feature is only supported when <code>UBOOT_EXTLINUX_FDT</code> is specified.</p>
+<p>To use, specify</p>
+<pre><code>UBOOT_EXTLINUX_FDT = "${DTBFILE}"
+UBOOT_EXTLINUX_FDTOVERLAYS = "my-overlay.dtbo"
+</code></pre>
+<p>Where <code>"my-overlay.dtbo"</code> is an overlay built using the mechanisms specific to your branch implementation (or potentially one provided by NVIDIA.  See <a href="Using-device-tree-overlays.html">Using-device-tree-overlays</a> for more details.  Note that since the overlay only happens to the kernel DTB this mechanism cannot be used to make any changes to the UEFI DTB.</p>
+<h2 id="caveats"><a class="header" href="#caveats">Caveats</a></h2>
 <ul>
-<li>Jetson AGX Orin development kit</li>
-<li>Jetson Orin NX 16GB (p3767-0000) in Xavier NX (p3509) carrier</li>
-<li>Jetson Orin NX 16GB (p3767-0000) in Orin Nano (p3768) carrier</li>
-<li>Jetson Orin Nano development kit</li>
-<li>Jetson AGX Orin Industrial 64GB (P3701-0008) in Orin AGX (P3737) carrier</li>
+<li>The upstream UEFI bootloader does not implement this; it was tacked on by NVIDIA in their <code>L4TLauncher</code> EFI application.</li>
+<li>The ext4 filesystem implementation that NVIDIA provides in their bootloader may have some bugs/limitations that could prevent it from reading the <code>extlinux.conf</code> or other files in your root filesystem.  Using newer ext4 features, or non-ext4 filesystems for your root filesystem, could lead to boot failures.</li>
+<li>The <code>extlinux.conf</code> syntax supported in <code>L4TLauncher</code> is not the same as U-Boot’s, and the parsing code isn’t the most robust/forgiving, so be careful about any modifications you may want to make, to avoid boot failures.</li>
 </ul>
-<p>This layer depends on:
-URI: git://git.openembedded.org/openembedded-core
-branch: master
-LAYERSERIES_COMPAT: whinlatter</p>
-<h2 id="cuda-toolchain-compatibility-note"><a class="header" href="#cuda-toolchain-compatibility-note">CUDA toolchain compatibility note</a></h2>
-<p>CUDA 12.6 supports up through gcc 13.2 only, so recipes are included
-for adding the gcc 10 toolchain to the build for CUDA use, and <code>cuda.bbclass</code>
-has been updated to pass the g++ 10 compiler to nvcc for CUDA code compilation.</p>
-<h2 id="getting-help"><a class="header" href="#getting-help">Getting Help</a></h2>
-<p>For general build issues or questions about getting started with your build
-setup please use the
-<a href="https://github.com/OE4T/meta-tegra/discussions">Discussions</a> tab of the
-meta-tegra repository:</p>
+<h1 id="for-l4t-r32x"><a class="header" href="#for-l4t-r32x">For L4T R32.x</a></h1>
+<p>In L4T R32.x:</p>
 <ul>
-<li>Use the Ideas category for anything you’d like to see included in meta-tegra,
-Wiki content, or the
-<a href="https://github.com/OE4T/tegra-demo-distro/issues">tegra-demo-distro</a>.</li>
-<li>Use the Q&amp;A category for questions about how to build or modify your Tegra
-target based on the content here.</li>
-<li>Use the “Show and Tell” category for any projects you’d like to share which
-are related to meta-tegra.</li>
-<li>Use the General channel for anything that doesn’t fit well into the categories
-above, and which doesn’t relate to a build or runtime issue with Tegra yocto
-builds.</li>
+<li>The TX1/Nano platforms use U-Boot by default, so no changes are required to use <code>extlinux.conf</code> files.</li>
+<li>The TX2 platform defaults to using U-Boot which supports <code>extlinux.conf</code>.  TX2 builds can be configured to use <code>cboot</code> without U-Boot, and the TX2 <code>cboot</code> implementation does not support <code>extlinux.conf</code>.</li>
+<li>The Xavier platforms have a different <code>cboot</code> code base which (unlike the TX2 implementation) <em>does</em> have some support for <code>extlinux.conf</code> files.  The rest of this page covers the Xavier implementation.</li>
 </ul>
-<h2 id="reporting-issues"><a class="header" href="#reporting-issues">Reporting Issues</a></h2>
-<p>Use the <a href="https://github.com/OE4T/meta-tegra/issues">Issues tab in meta-tegra</a>
-for reporting build or runtime issues with Tegra yocto build targets.  When
-reporting build or runtime issues, please include as much information about your
-environment as you can. For example, the target hardware you are building for,
-branch/version information, etc.  Please fill in the provided bug template when
-reporting issues.</p>
-<p>We are required to provide an e-mail address, but please use GitHub as
-described above, instead of sending e-mail to oe4t-questions@madison.systems.</p>
-<h2 id="contributing"><a class="header" href="#contributing">Contributing</a></h2>
-<p>Please see <a href="CONTRIBUTING.html">CONTRIBUTING.md</a> for information on submitting
-patches to the maintainers.</p>
-<p>Contributions are welcome!</p>
+<h2 id="configuring-xavier-extlinuxconf-support"><a class="header" href="#configuring-xavier-extlinuxconf-support">Configuring Xavier extlinux.conf support</a></h2>
+<p>Add the <code>cboot-extlinux</code> package to your image to enable booting your Xavier device
+with the kernel loaded from <code>/boot</code> in the rootfs instead from from a separate partition.
+This is only available in the <code>kirkstone-l4t-r32.7.x</code> branch (as of this writing).</p>
+<p><strong>Use with caution.</strong>  Not recommended for production use.</p>
+<h3 id="notes"><a class="header" href="#notes">Notes</a></h3>
+<p>The cboot bootloader on the Xavier (t194) platforms has support for loading the kernel, initial ramdisk,
+and device tree from files in the rootfs, rather than the <code>kernel</code> partition. The stock L4T BSP has
+supported this for several releases, installing the kernel image and initrd into <code>/boot</code> and
+a <code>/boot/extlinux/extlinux.conf</code> file that cboot uses to locate the files. This can simplify kernel
+development by eliminating the need to reflash the device to boot with updated kernels.</p>
+<p>To implement this in meta-tegra, the <code>cboot-extlinux</code> recipe has been added.  Adding <code>cboot-extlinux</code> to your
+image will include the necessary files – kernel, initrd (if not bundled), and optionally the
+device tree, along with the <code>extlinux.conf</code> file and signatures for the files that are expected to
+be signed – in your rootfs.</p>
+<p>When extlinux support in cboot is enabled (which it is by default), cboot will first try to mount the rootfs to locate
+the <code>extlinux.conf</code> file.  The rootfs is either marked as such with a partition GUID (see below) or is assumed
+to be the first partition on the boot medium (SDcard, eMMC, or external device). cboot then tries to open
+<code>/boot/extlinux/extlinux.conf</code> on that filesystem. If successful, it parses the configuration, then attempts
+to load the kernel, initrd, and/or device tree based on the path names in the file. For elements that are
+not configured in that file (or all of them, if the file does not exist), cboot falls back to loading them
+from partitions on the device (<code>kernel</code> for the kernel+initrd, <code>kernel-dtb</code> for the device tree).</p>
+<h3 id="extlinuxconf-file-format"><a class="header" href="#extlinuxconf-file-format">extlinux.conf file format</a></h3>
+<p>The format of the configuration file is a subset of the format used in the
+<a href="https://source.denx.de/u-boot/u-boot/-/blob/master/doc/README.distro">distro boot</a>
+feature of U-Boot.  The <code>cboot-extlinux-config.bbclass</code> file implements the cboot-specific configuration subset; see the comments in that
+file for more information.</p>
+<p><strong>WARNING</strong> Modifying the <code>extlinux.conf</code> file incorrectly will often result in
+cboot crashes, making your device unbootable. Use caution when making any changes
+to the file.</p>
+<h3 id="adding-the-device-tree"><a class="header" href="#adding-the-device-tree">Adding the device tree</a></h3>
+<p>By default, the <code>cboot-extlinux</code> recipe installs the default kernel image and initrd
+(if configured to be separate from the kernel), but not the device tree, to align
+with the default stock L4T setup. Set <code>UBOOT_EXTLINUX_FDT = "/boot/${DTBFILE}"</code> in
+either a bbappend or in your <code>local.conf</code> to include the device tree.</p>
+<h3 id="incompatible-with-ab-redundancy"><a class="header" href="#incompatible-with-ab-redundancy">Incompatible with A/B redundancy</a></h3>
+<p>Using <code>cboot-extlinux</code> for loading the kernel is not compatible with the A/B
+redundancy mechanism - the kernel will always be loaded from the A rootfs partition.</p>
+<p>It may be possible to fix this by assigning a unique partition GUID to each of
+the two rootfs partitions, and creating cboot options files (<code>cbo.dtb</code> files) to
+configure the rootfs GUIDs - one to be loaded into the <code>CPUBL-CFG</code> partition, and
+the other into <code>CPUBL-CFG_b</code>. However, that would conflict with the normal bootloader
+update mechanism, since BUP payloads don’t distinguish between the A and B slot for their
+content. Some extra mechanism would be needed to keep the two CPUBL-CFG partitions
+synchronized with the corresponding rootfs partition GUIDs.</p>
+<h3 id="filesystem-restrictions"><a class="header" href="#filesystem-restrictions">Filesystem restrictions</a></h3>
+<p>This has only been tested with ext4-formatted root filesystems, and bugs found in
+cboot’s ext4 implementation have been patched to make this work. Other filesystem types
+are unlikely to work.  Also, you should use the <code>cboot-t19x</code> recipe that builds
+cboot from source to get the required patches (this is the default).</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="Wayland-Weston-support-on-Jetson-platforms.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="Controlling-Jetson-pin-states.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="initrd-flashing-support.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -240,8 +274,11 @@ patches to the maintainers.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="Wayland-Weston-support-on-Jetson-platforms.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="Controlling-Jetson-pin-states.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="initrd-flashing-support.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

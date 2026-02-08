@@ -1,0 +1,342 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Prerequisites - OE4T Meta Tegra</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="docs/mdbook/css/custom-7cc8859f.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-f966af29.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-fb00983b.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">OE4T Meta Tegra</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <p>Notes on extending support for flashing Jetson devices that boot from external storage media (NVMe, USB).</p>
+<p>Last update: 25 Jul 2025</p>
+<p>This is currently supported on branches based off JetPack 5/L4T R35 or later, and <code>kirkstone-l4t-r32.7.x</code>.  For R32.7.x, there is support for T210 (TX1/Nano) as well as T186 (TX2) and T194 (Xavier) targets.</p>
+<h1 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h1>
+<p>Beyond the normal host tools required for building and normal flashing, you should also have these commands available on your build host:</p>
+<ul>
+<li><code>sgdisk</code> (from the <code>gdisk</code>/<code>gptfdisk</code> package)</li>
+<li><code>udisksctl</code> (part of the <code>udisks2</code> package)</li>
+</ul>
+<p>You should disable automatic mounting of removable media in your desktop settings. On recent Ubuntu (GNOME), go to Settings -&gt; Removable Media, and check the box next to “Never prompt or start programs on media insertion.”  You may also need to update the <code>/org/gnome/desktop/media-handling/automount</code> setting via <code>dconf</code>.  Check the setting with:</p>
+<pre><code>$ dconf read /org/gnome/desktop/media-handling/automount
+</code></pre>
+<p>If it reports <code>true</code>, set it with:</p>
+<pre><code>$ dconf write /org/gnome/desktop/media-handling/automount false
+</code></pre>
+<p>For Ubuntu 24.04, use <code>gsettings</code>, and also disable <code>automount-open</code>:</p>
+<pre><code>$ gsettings set org.gnome.desktop.media-handling automount false
+$ gsettings set org.gnome.desktop.media-handling automount-open false
+</code></pre>
+<p>If the <code>bmaptool</code> command is available, it will be used for writing to the storage device, which speeds up writes but (currently) requires root privileges (the scripts will automatically use <code>sudo</code> to invoke it when needed).</p>
+<p>No additional host changes should be required</p>
+<p>Your image needs to include a device-tree with <code>usb2-0</code> in <code>otg</code> mode - as <a href="https://github.com/OE4T/linux-tegra-4.9/blob/oe4t-patches-l4t-r32.7.4/nvidia/platform/t19x/jakku/kernel-dts/common/tegra194-p3668-common.dtsi#L127">here</a>.</p>
+<h2 id="avoiding-sudo"><a class="header" href="#avoiding-sudo">Avoiding Sudo</a></h2>
+<p>Note: <code>sudo</code> access will be needed when writing the disks using <code>bmap-tools</code>. This method below will avoid sudo while mounting/unmounting the flaskpkg and related block devices.</p>
+<p>For running the <code>initrd-flash</code> script without <code>sudo</code>, the host changes mentioned in the “Avoiding sudo” section on the <a href="Flashing-the-Jetson-Dev-Kit.html">Flashing the Jetson Dev Kit</a> wiki page still apply.</p>
+<p>In addition, to avoid prompts for authentication at several points in the process you need to configure polkit appropriately.  On Ubuntu 22.04 this can be accomplished with the following script snippet run as sudo root:</p>
+<pre><code>cat &lt;&lt; EOF &gt; /var/lib/polkit-1/localauthority/50-local.d/com.github.oe4t.pkla
+[Allow Mounting for Disk Group]
+Identity=unix-group:disk
+Action=org.freedesktop.udisks2.filesystem-mount
+ResultAny=yes
+
+[Allow Power Off Drive for Disk Group]
+Identity=unix-group:disk
+Action=org.freedesktop.udisks2.power-off-drive
+ResultAny=yes
+EOF
+chmod 644 /var/lib/polkit-1/localauthority/50-local.d/com.github.oe4t.pkla
+systemctl restart polkit
+</code></pre>
+<h1 id="build-configuration"><a class="header" href="#build-configuration">Build configuration</a></h1>
+<p>No configuration is required if you just want to use initrd flashing and still keep your rootfs on the Jetson’s internal storage device. You only need to add a configuration setting if you want to configure your system to have its rootfs (<code>APP</code> partition) on an external storage device.  To do that, add a line to your <code>local.conf</code> such as:</p>
+<pre><code>TNSPEC_BOOTDEV:jetson-xavier-nx-devkit-emmc = "nvme0n1p1"
+</code></pre>
+<ul>
+<li>If trying this out with a different Jetson device, use the MACHINE name for the override in the above.</li>
+<li>If trying USB storage instead of NVMe, use <code>sda1</code> as the boot device, instead of <code>nvme0n1p1</code>.</li>
+</ul>
+<h1 id="flashing-after-build"><a class="header" href="#flashing-after-build">Flashing after build</a></h1>
+<ol>
+<li>Put the Jetson device into recovery mode and connect it to your host via the USB OTG port.</li>
+<li>Unpack the <code>tegraflash</code> tarball into an empty directory.</li>
+<li><code>cd</code> to that directory and run <code>./initrd-flash</code> to start the flashing process.</li>
+</ol>
+<p>The script:</p>
+<ol>
+<li>Uses the RCM boot feature to download a special <a href="https://github.com/OE4T/meta-tegra/blob/master/recipes-core/images/tegra-initrd-flash-initramfs.bb">initrd and kernel</a> that sets up the device as a USB mass storage gadget.</li>
+<li>Waits for the USB storage device to appear on the host, then copies in the bootloader files and a command sequence for the target that instructs it to start the boot device update, and tells it which storage device(s) should be exported to the host for writing.</li>
+<li>Uses the <code>make-sdcard</code> script to write to storage device(s).  This happens in parallel with the target’s programming of the boot device.</li>
+<li>Waits for the target to export another storage device to report its final status and the logs generated on the target. The script copies the device logs into a subdirectory.  When finished, it releases the storage device, and the target reboots automatically.</li>
+</ol>
+<p><strong>Note:</strong> add the current Linux user to the <code>disk</code> group to avoid the usage of <code>sudo</code> to run <code>initrd-flash</code> script.</p>
+<h1 id="re-flashing-just-the-rootfs-storage-device"><a class="header" href="#re-flashing-just-the-rootfs-storage-device">Re-flashing just the rootfs storage device</a></h1>
+<p>The <code>initrd-flash</code> script has a <code>--skip-bootloader</code> option for skipping the programming of the boot partitions, so you can re-flash just the rootfs storage device.  You should only use this option if you have already programmed the boot partitions once with the versions you’re using for your current build.</p>
+<h1 id="possible-future-enhancements"><a class="header" href="#possible-future-enhancements">Possible future enhancements</a></h1>
+<ul>
+<li>Develop the kernel/initrd used here into a more general “recovery” image, and/or applied for cross-version OTA updates, although the specific use cases will probably require something a bit different and need more customization.</li>
+<li>See if something could be done to automate setup when using LUKS encryption.  Direct formatting and partition writing from the host isn’t really an option there.  A hybrid approach (formatting and cryptsetup done on the device, then exporting the encrypted partitions via USB) should be workable.</li>
+</ul>
+<h1 id="how-it-works"><a class="header" href="#how-it-works">How it works</a></h1>
+<ul>
+<li>The helper scripts now support an <code>--external-device</code> option that passes appropriate options to <code>tegraflash.py</code> (needed since one of the BCTs appears to include information the external storage device for the boot chain to work), and an <code>--rcm-boot</code> option to allow direct download/execution of a kernel+initrd image.</li>
+<li>The SDcard-related support in the <code>nvflashxmlparse</code> and <code>make-sdcard</code> scripts was generalized to distinguish between the ‘boot’ device and any ‘rootfs’ device.</li>
+<li>The <code>tegra-flash-init</code> recipe was added to install a minimal init script for the flashing kernel, which sets up a USB mass storage gadget for the device to be flashed.  The serial number advertised by the gadget is the unique chip id (ECID) of the Tegra SoC.</li>
+<li>The <code>initrd-flash</code> script and the flashing kernel/initrd are added to the tegraflash package to drive the process.  The ECID (unique ID) of the SoC is extracted during initial RCM contact and used to locate the correct <code>/dev/sdX</code> device for the partition writing.</li>
+<li>A <code>find-jetson-usb</code> script has been added to wait for the appearance of the Jetson (in recovery mode) on the host USB bus.</li>
+<li>The tegraflash package generator in <code>image_types_tegra.bbclass</code> exports additional settings (e.g., the <code>TNSPEC_BOOTDEV</code> setting) in the file <code>.env.initrd-flash</code> for use by the <code>initrd-flash</code> script.</li>
+<li>The <code>tegra-bootfiles</code> recipe populates an external flash layout (XML) file in addition to the main (internal storage) flash layout file. The default layout from the L4T kit are modified, if required, to ensure that the boot and kernel partitions are present in the correct layout (with no duplicates) when <code>TNSPEC_BOOTDEV</code> set for using external storage.</li>
+</ul>
+<h1 id="notes"><a class="header" href="#notes">Notes</a></h1>
+<ul>
+<li>RCM booting on T194 platforms bypasses the UEFI bootloader, directly loading the kernel from nvtboot.  This means that the kernel/initrd does not have access to any EFI variables.  UEFI <em>is</em> used in the RCM boot chain on T234 platforms.</li>
+<li>On Xavier NX dev kits (SDcard-based), you must still have an SDcard installed in the slot even if you are booting off an external drive. The SDcard must <em>not</em> have an <code>esp</code> or <code>APP</code> partition on it.  You must manually reformat the SDcard, as the flashing process will not do that for you.  For all other Jetsons with internal eMMC storage, the eMMC <em>will</em> be erased as part of the flashing process (and re-partitioned/re-populated for those platforms that store some of the bootloader binaries in the eMMC).</li>
+<li>Based on readings of some NVIDIA dev forum posts, A/B updates in JetPack 5.0 do not work properly in all cases when booting off an external drive.  That is supposed to be fixed in JetPack 5.1.</li>
+<li>Depending on your device’s configuration (e.g., having multiple storage devices attached), you may need to manually configure the boot order in the UEFI bootloader by hitting <code>ESC</code> when UEFI starts, and then selecting <code>Boot Maintenance Manager</code>, then <code>Boot Options</code>, then <code>Change Boot Order</code>.  This is a limitation in JetPack 5.0 that is supposed to be fixed in JetPack 5.1.</li>
+<li>If you use a custom flash layout for your builds, note that there are some limitations on the composition of your flash layout file(s) due to how the bootloaders and the NVIDIA tools work. For example, you cannot use a SPI flash-only layout for internal storage, since the BUP payload generator expects to be able to create a payload containing the kernel/kernel DTB. The generator will fail during the build, since those partitions are not present in the SPI flash.  You also cannot use a single flash layout that includes only the boot partitions (in, for example, SPI flash on AGX Orin and Xavier NX) and the external storage device (<code>nvme</code>).  The tools that generate the MB1 BCT and/or MB2 BCT will error out because those bootloaders cannot access external storage. Hopefully NVIDIA will resolve these limitations in a future release.</li>
+</ul>
+<h1 id="comparison-with-stock-l4t-initrd-flashing"><a class="header" href="#comparison-with-stock-l4t-initrd-flashing">Comparison with stock L4T initrd flashing</a></h1>
+<ul>
+<li>OE builds are per-machine, so much of the additional scripting to handle different targets during the flashing process can be omitted.</li>
+<li>With OE builds, TNSPEC_BOOTDEV selection is performed at build time. Switching back and forth between external rootfs and internal storage should be done with different builds.</li>
+<li>Stock L4T provides its initrd in prebuilt form, which requires disassembling and reassembling the initrd in the flashing scripts.  With OE, we can build the flashing initrd directly.</li>
+<li>Stock L4T requires customizing the external drive’s flash layout to specify the exact size of the storage device, in sectors.  That’s not required with OE builds, which do not use NVIDIA’s flashing tools to partition the external drive.</li>
+<li>Stock L4T inserts udev rules on the host during flashing and does some network setup to talk to the device.  The process implemented for OE builds does not use any networking and does not require any udev rules changes during the flashing process.  You also don’t have to be root to perform initrd-based flashing for OE builds, if you have followed the instructions <a href="Flashing-the-Jetson-Dev-Kit.html#avoiding-sudo">here</a>. (However, the <code>bmaptool copy</code> command used in the <code>make-sdcard</code> script does need root access for its setup, and the script will run it under <code>sudo</code> for you).</li>
+</ul>
+<h1 id="limitations-on-using-an-external-drive-for-the-rootfs"><a class="header" href="#limitations-on-using-an-external-drive-for-the-rootfs">Limitations on using an external drive for the rootfs</a></h1>
+<ul>
+<li>On Jetson TX2 devices, the bootloaders do not have support for loading the kernel from an external drive.  The kernel, initrd, and device tree must reside on the eMMC (along with some of the boot partitions).</li>
+<li>Other Jetsons that boot directly from the eMMC (TX1, Nano-eMMC, Xavier NX-eMMC, AGX Xavier) also need to have some of the boot partitions in the main part of the eMMC.</li>
+<li>With Jetsons running JetPack 5/L4T R35.1.0, you may need to manually interrupt the UEFI bootloader to adjust the boot order to favor the external drive.  Even then, UEFI may attempt a PXE (network) boot first.  (This appears to be fixed with JetPack 5.1/L4T R35.2.1.)</li>
+</ul>
+<h1 id="known-issues"><a class="header" href="#known-issues">Known issues</a></h1>
+<ul>
+<li>On an AGX Orin configured to use an external drive for the rootfs (NVMe), once it has been flashed using <code>initrd-flash</code>, the RCM boot of the <code>initrd-flash</code> kernel stops working; the NVMe-resident OS is booted instead.  This happens with the stock L4T initrd flashing tools also. To work around the problem, clear the partition table on the NVMe drive (e.g., using <code>sgdisk /dev/nvme0n1 --clear</code>) before resetting the Orin into recovery mode to start the re-flashing process.</li>
+<li>On T210 platforms (TX1/Nano), if you use the normal <code>doflash.sh</code> script, boot binaries will get overwritten (due to the way the NVIDIA flashing tools work), and that will cause an “FDT_ERR_BADMAGIC” error if you later try to run <code>initrd-flash</code>.  The error is minor, and probably won’t cause any real issues with the flashing/booting process.  To be safe, though, you should not mix normal and initrd-based flashing in the same tegraflash directory.</li>
+</ul>
+<h1 id="customizing-external-storage-size"><a class="header" href="#customizing-external-storage-size">Customizing External Storage Size</a></h1>
+<p>Beginning with Jetpack 5.1.2 (r35.4.1) (and <a href="https://github.com/OE4T/meta-tegra/commit/43e1bf6fb07650db1df1af575aa54cc0038481f2">this commit</a>), the <code>TEGRA_EXTERNAL_DEVICE_SECTORS</code> variable is used to customize the total size of device containing the root filesystem (as well as all other partitions in <code>PARTITION_LAYOUT_EXTERNAL</code>).  The default size of this variable assumes a device which is at least 64GB in size.</p>
+<p>You may increase your root filesystem size to a value of around 30GB, leaving space for two root filesystem partitions (to support A/B redundancy) and additional partitions by defining <code>ROOTFSPART_SIZE</code> to a 4K aligned value in bytes of ~30 GB using a setting like <code>ROOTFSPART_SIZE = "30032384000"</code> in your local.conf.</p>
+<p>If you have an external device larger than 64GB and would like to use this for a larger root filesystem, in addition to modifying <code>ROOTFSPART_SIZE</code> you will also need to adjust the <code>TEGRA_EXTERNAL_DEVICE_SECTORS</code> to specify a larger size in sectors.  For instance, to specify a ~60 GB rootfs on a 128 GB flash drive use <code>ROOTFSPART_SIZE = "60064768000"</code>and <code>TEGRA_EXTERNAL_DEVICE_SECTORS = "250000000"</code></p>
+<h1 id="general-tegraflash-troubleshooting"><a class="header" href="#general-tegraflash-troubleshooting">General Tegraflash Troubleshooting</a></h1>
+<p>See <a href="Tegraflash-Troubleshooting.html">Tegraflash-Troubleshooting</a></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="extlinux.conf-support.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="extlinux.conf-support.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="docs/mdbook/js/version-dropdown-b3498603.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

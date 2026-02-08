@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - OE4T Meta Tegra</title>
+        <title>Getting started - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -175,62 +175,96 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="openembeddedyocto-bsp-layer-for-nvidia-jetson-modules"><a class="header" href="#openembeddedyocto-bsp-layer-for-nvidia-jetson-modules">OpenEmbedded/Yocto BSP layer for NVIDIA Jetson Modules</a></h1>
-<p>Jetson Linux release: R36.4.4
-JetPack release:      6.2.1</p>
-<p>Boards supported:</p>
+                        <p>Jetson secure boot support in L4T R35.2.1 implements a different chain of trust from what was present in the <a href="Secure-Boot-Support.html">L4T R32</a> releases:</p>
 <ul>
-<li>Jetson AGX Orin development kit</li>
-<li>Jetson Orin NX 16GB (p3767-0000) in Xavier NX (p3509) carrier</li>
-<li>Jetson Orin NX 16GB (p3767-0000) in Orin Nano (p3768) carrier</li>
-<li>Jetson Orin Nano development kit</li>
-<li>Jetson AGX Orin Industrial 64GB (P3701-0008) in Orin AGX (P3737) carrier</li>
+<li>The Trusty secure OS has been replaced by OP-TEE, which allows for dynamic loading of trusted applications (TAs) from the non-secure world. TAs must be signed, and the public key used for checking the signature is compiled into the OP-TEE OS.</li>
+<li>The cboot bootloader has been replaced by UEFI, which uses its own set of keys for validating signatures on binaries that it loads (Linux kernel, EFI applications, and EFI capsules).</li>
 </ul>
-<p>This layer depends on:
-URI: git://git.openembedded.org/openembedded-core
-branch: master
-LAYERSERIES_COMPAT: whinlatter</p>
-<h2 id="cuda-toolchain-compatibility-note"><a class="header" href="#cuda-toolchain-compatibility-note">CUDA toolchain compatibility note</a></h2>
-<p>CUDA 12.6 supports up through gcc 13.2 only, so recipes are included
-for adding the gcc 10 toolchain to the build for CUDA use, and <code>cuda.bbclass</code>
-has been updated to pass the g++ 10 compiler to nvcc for CUDA code compilation.</p>
-<h2 id="getting-help"><a class="header" href="#getting-help">Getting Help</a></h2>
-<p>For general build issues or questions about getting started with your build
-setup please use the
-<a href="https://github.com/OE4T/meta-tegra/discussions">Discussions</a> tab of the
-meta-tegra repository:</p>
+<p><strong>NOTE</strong> NVIDIA made some changes to the UEFI bootloader in L4T R35.5.0 that require that an “authentication key” be programmed into the Encrypted Key Block on secured devices. If you are updating your secured device from an earlier R35.x release to R35.5.0, you <em>must</em> update the EKB on the device with the added key.  See <a href="https://forums.developer.nvidia.com/t/284400/8">this developer forum thread</a> for more information.</p>
+<h1 id="getting-started"><a class="header" href="#getting-started">Getting started</a></h1>
+<p>Start by reading the <a href="https://docs.nvidia.com/jetson/archives/r36.4.3/DeveloperGuide/SD/Security/SecureBoot.html">Secure Boot</a> section of the Jetson Linux Developer’s Guide.</p>
+<p>The sections below cover specifics of how secure boot and signing are implemented for OE/Yocto builds with meta-tegra.</p>
+<h1 id="bootloader-signing"><a class="header" href="#bootloader-signing">Bootloader signing</a></h1>
+<h2 id="setting-fuses-for-secure-boot"><a class="header" href="#setting-fuses-for-secure-boot">Setting fuses for secure boot</a></h2>
+<p>Follow the instructions in the NVIDIA documentation for generating keys and burning secure boot fuses for your Jetson device. Be warned that burning the fuses is a <strong>one-time</strong> operation, so be extremely careful. You could render your Jetson <strong>permanently unbootable</strong> if something goes wrong during the fuse burning process.</p>
+<h2 id="build-time-bootloader-signing"><a class="header" href="#build-time-bootloader-signing">Build-time bootloader signing</a></h2>
+<p>If you have the bootloader signing and encryption key files available, you can add the following setting to your <code>local.conf</code> to create signed boot images and BUP packages:</p>
+<pre><code>TEGRA_SIGNING_ARGS = "-u /path/to/pkc-signing-key.pem -v /path/to/sbk.key --user_key /path/to/user.key"
+</code></pre>
+<p>These arguments parallel the ones used with the L4T <code>flash.sh</code> script for signing:</p>
 <ul>
-<li>Use the Ideas category for anything you’d like to see included in meta-tegra,
-Wiki content, or the
-<a href="https://github.com/OE4T/tegra-demo-distro/issues">tegra-demo-distro</a>.</li>
-<li>Use the Q&amp;A category for questions about how to build or modify your Tegra
-target based on the content here.</li>
-<li>Use the “Show and Tell” category for any projects you’d like to share which
-are related to meta-tegra.</li>
-<li>Use the General channel for anything that doesn’t fit well into the categories
-above, and which doesn’t relate to a build or runtime issue with Tegra yocto
-builds.</li>
+<li>The <code>-u</code> option takes the path name of the RSA private key for PKC signing.</li>
+<li>The <code>-v</code> option takes the path name of the SBK key used for encrypting the binaries loaded at boot time.</li>
+<li>The <code>--user_key</code> option takes the path name of the encryption key you create for use with the <a href="https://docs.nvidia.com/jetson/archives/r36.4.3/DeveloperGuide/SD/Security/OpTee.html#sample-applications">NVIDIA sample OP-TEE TAs</a>.</li>
 </ul>
-<h2 id="reporting-issues"><a class="header" href="#reporting-issues">Reporting Issues</a></h2>
-<p>Use the <a href="https://github.com/OE4T/meta-tegra/issues">Issues tab in meta-tegra</a>
-for reporting build or runtime issues with Tegra yocto build targets.  When
-reporting build or runtime issues, please include as much information about your
-environment as you can. For example, the target hardware you are building for,
-branch/version information, etc.  Please fill in the provided bug template when
-reporting issues.</p>
-<p>We are required to provide an e-mail address, but please use GitHub as
-described above, instead of sending e-mail to oe4t-questions@madison.systems.</p>
-<h2 id="contributing"><a class="header" href="#contributing">Contributing</a></h2>
-<p>Please see <a href="CONTRIBUTING.html">CONTRIBUTING.md</a> for information on submitting
-patches to the maintainers.</p>
-<p>Contributions are welcome!</p>
+<p>Note that with R35.2.1, the <code>--user_key</code> encryption key is used only for the XUSB firmware.  Starting with R35.3.1, the user encryption key is not used for <em>any</em> of the boot firmware.</p>
+<p>Build-time bootloader signing will be performed on the boot-related files in the <code>tegraflash</code> package for flashing, as well as the entries in any bootloader update payloads (BUPs).</p>
+<h2 id="post-build-signing"><a class="header" href="#post-build-signing">Post-build signing</a></h2>
+<p>You can elect to perform bootloader signing outside of the build process by adding the <code>-u</code>, <code>-v</code>, and <code>--user_key</code> options when running the <code>doflash.sh</code> or <code>initrd-flash</code> script during flashing of your <code>tegraflash</code> package.  For BUP generation, add those options when running the <code>generate_bup_payload.sh</code> script to have the bootloader components signed.</p>
+<h1 id="uefi-secure-boot"><a class="header" href="#uefi-secure-boot">UEFI Secure Boot</a></h1>
+<p>To enable UEFI secure boot support, start by generating the PK, KEK, and DB keys and related configuration files, as described in the <a href="https://docs.nvidia.com/jetson/archives/r36.4.3/DeveloperGuide/SD/Security/SecureBoot.html#uefi-secure-boot">UEFI Secure Boot</a> section of the Jetson Linux documentation.</p>
+<p>It should be noted that UEFI boot is not compatible with the legacy secure boot supported on Tegra devices.</p>
+<h2 id="build-time-uefi-signing"><a class="header" href="#build-time-uefi-signing">Build-time UEFI signing</a></h2>
+<p>During the build, signing of the EFI launcher app, the kernel, and device tree files is performed automatically when the following settings are present in your build configuration:</p>
+<pre><code>TEGRA_UEFI_DB_KEY = "/path/to/db.key"
+TEGRA_UEFI_DB_CERT = "/path/to/db.crt"
+</code></pre>
+<p>Both settings must be present, and must point to one of the DB keys you generated (you do not need the PK or KEK keys).</p>
+<h2 id="post-build-uefi-signing"><a class="header" href="#post-build-uefi-signing">Post-build UEFI signing</a></h2>
+<p>Post-build UEFI signing is not currently supported.</p>
+<h2 id="enrolling-uefi-keys-at-build-time"><a class="header" href="#enrolling-uefi-keys-at-build-time">Enrolling UEFI keys at build time</a></h2>
+<p>To enable UEFI secure boot, the PK, KEK, and DB keys you generated must be “enrolled” at boot time. On Jetson platforms, this done by adding the needed key enrollment variable settings to the bootloader’s device tree via the <code>UefiDefaultSecurityKeys.dts</code> file you generated when creating the keys and configuration files. For meta-tegra builds, you can supply this file by adding a bbappend for the <code>tegra-uefi-keys-dtb.bb</code> recipe in one of your own metadata layers, substituting variables MY_LAYER with the path to your layer and MY_UEFI_KEYS_DIR with the path to your uefi_keys directory setup after following instructions linked above</p>
+<pre><code>export MY_LAYER=tegra-demo-distro/layers/meta-tegrademo
+export MY_UEFI_KEYS_DIR=~/uefi_keys/
+mkdir -p ${MY_LAYER}/recipes-bsp/uefi
+cat &gt; ${MY_LAYER}/recipes-bsp/uefi/tegra-uefi-keys-dtb.bbappend &lt;&lt;'EOF'
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+EOF
+mkdir -p ${MY_LAYER}/recipes-bsp/uefi/files
+cp ${MY_UEFI_KEYS_DIR}/UefiDefaultSecurityKeys.dts ${MY_LAYER}/recipes-bsp/uefi/files/
+echo "Copy below is optional, only needed if you plan to update your keys with a capsule update"
+cp ${MY_UEFI_KEYS_DIR}/UefiUpdateSecurityKeys.dts ${MY_LAYER}/recipes-bsp/uefi/files/
+</code></pre>
+<h2 id="enrolling-uefi-keys-at-runtime"><a class="header" href="#enrolling-uefi-keys-at-runtime">Enrolling UEFI keys at runtime</a></h2>
+<p>The Jetson Linux documentation describes the process for enrolling UEFI keys and enabling UEFI secure boot at runtime. You will need to add some packages to your image build to make the necessary commands available.  As of this writing, runtime enrollment has not been tested.</p>
+<h1 id="op-tee-trusted-application-signing"><a class="header" href="#op-tee-trusted-application-signing">OP-TEE Trusted Application signing</a></h1>
+<p>OP-TEE provides a mechanism for loading TAs from the “Rich Execution Environment” (REE, another term for the normal, non-secure OS), which must be signed with a key that is known the OP-TEE OS.  Read the <a href="https://optee.readthedocs.io/en/latest/building/trusted_applications.html#">OP-TEE documentation on TAs</a> for more information.</p>
+<p>By default, a development/test key from the upstream OP-TEE source is compiled in; this configuration should <strong>not</strong> be used in any production device, since the key is publicly available.  You should generate a suitable RSA keypair as described in the OP-TEE documentation.  For build-time signing, add a bbappend for the <code>optee-os</code> recipe in one of your layers.  For build-time signing, your bbappend should resemble the following:</p>
+<pre><code>FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+SRC_URI += "file://optee-signing-key.pem"
+EXTRA_OEMAKE += "TA_SIGN_KEY=${WORKDIR}/optee-signing-key.pem"
+</code></pre>
+<p>Post-build signing of TAs is more difficult, since external TAs are generally packaged and installed into the root filesystem as part of the build. For that approach, though, you would include the public key file in the <code>optee-os</code> bbappend, and set <code>TA_PUBLIC_KEY</code> instead of <code>TA_SIGN_KEY</code>.  The OP-TEE makefiles will sign TAs with the a dummy private key, but the public key you specify will be compiled into the secure OS.  You will have to figure out how to re-sign the TAs with your actual private key before they get used.</p>
+<h1 id="using-the-nvidia-built-in-sample-tas"><a class="header" href="#using-the-nvidia-built-in-sample-tas">Using the NVIDIA built-in sample TAs</a></h1>
+<p>To make use of the encryption/decryption functions NVIDIA provides by default with their OP-TEE implementation, you will need to supply an “Encrypted Keyblob” (EKB) that corresponds to the KEK/K2 fuses you have burned on your Jetson device.  Instructions for generating an EKB are in <a href="https://docs.nvidia.com/jetson/archives/r36.4.3/DeveloperGuide/SD/Security/OpTee.html#tool-for-ekb-generation">this section</a> of the Jetson Linux documentation.  See the note at the top of this page for information about changes in L4T R35.5.0 that require the re-generation of the EKB.</p>
+<p>The <code>tegra-bootfiles</code> recipe installs the default EKB from the L4T kit.  Add a bbappend for that recipe to replace the default with the custom EKB for your device.</p>
+<h2 id="generating-a-custom-ekb"><a class="header" href="#generating-a-custom-ekb">Generating a Custom EKB</a></h2>
+<p>Before replacing the default EKB in your Yocto build, you must generate a custom one that matches OemK1 fuse burned on your Jetson device. To do this, you need the <code>gen_ekb.py</code> script from the NVIDIA OP-TEE samples code base (for the <code>hwkey-agent</code> sample). You can find that script either in the L4T public sources tarball, or on <a href="https://nv-tegra.nvidia.com/r/plugins/gitiles/tegra/optee-src/nv-optee">NVIDIA’s git server</a> (making sure you choose the branch for the L4T version you are targeting).</p>
+<p>Example:</p>
+<pre><code>python3 gen_ekb.py -chip t234 \
+    -oem_k1_key oem_k1.key \
+    -in_sym_key2 sym2_t234.key \
+    -in_auth_key auth_t234.key \
+    -out eks_t234.img
+</code></pre>
+<p>where</p>
+<ul>
+<li><code>oem_k1.key</code> is the OEM_K1 key stored in the OEM_K1 fuse.</li>
+<li><code>sym2_t234.key</code> is the disk encryption key.</li>
+<li><code>auth_t234.key</code> is the UEFI variable authentication key</li>
+<li><code>eks_t234.img</code> is the generated EKB image to be flashed to the EKS partition of the device</li>
+</ul>
+<p>Kernel encryption is not currently supported in meta-tegra, so do <em>not</em> provide the UEFI payload encryption key (using <code>-in_sym_key</code>).</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="SPI-support.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="Controlling-Jetson-pin-states.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="Secure-Boot-Support.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -240,8 +274,11 @@ patches to the maintainers.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="SPI-support.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="Controlling-Jetson-pin-states.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="Secure-Boot-Support.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

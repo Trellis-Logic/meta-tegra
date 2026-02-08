@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - OE4T Meta Tegra</title>
+        <title>PPS GPIO Support on Jetson TX1 TX2 - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -175,62 +175,35 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="openembeddedyocto-bsp-layer-for-nvidia-jetson-modules"><a class="header" href="#openembeddedyocto-bsp-layer-for-nvidia-jetson-modules">OpenEmbedded/Yocto BSP layer for NVIDIA Jetson Modules</a></h1>
-<p>Jetson Linux release: R36.4.4
-JetPack release:      6.2.1</p>
-<p>Boards supported:</p>
-<ul>
-<li>Jetson AGX Orin development kit</li>
-<li>Jetson Orin NX 16GB (p3767-0000) in Xavier NX (p3509) carrier</li>
-<li>Jetson Orin NX 16GB (p3767-0000) in Orin Nano (p3768) carrier</li>
-<li>Jetson Orin Nano development kit</li>
-<li>Jetson AGX Orin Industrial 64GB (P3701-0008) in Orin AGX (P3737) carrier</li>
-</ul>
-<p>This layer depends on:
-URI: git://git.openembedded.org/openembedded-core
-branch: master
-LAYERSERIES_COMPAT: whinlatter</p>
-<h2 id="cuda-toolchain-compatibility-note"><a class="header" href="#cuda-toolchain-compatibility-note">CUDA toolchain compatibility note</a></h2>
-<p>CUDA 12.6 supports up through gcc 13.2 only, so recipes are included
-for adding the gcc 10 toolchain to the build for CUDA use, and <code>cuda.bbclass</code>
-has been updated to pass the g++ 10 compiler to nvcc for CUDA code compilation.</p>
-<h2 id="getting-help"><a class="header" href="#getting-help">Getting Help</a></h2>
-<p>For general build issues or questions about getting started with your build
-setup please use the
-<a href="https://github.com/OE4T/meta-tegra/discussions">Discussions</a> tab of the
-meta-tegra repository:</p>
-<ul>
-<li>Use the Ideas category for anything you’d like to see included in meta-tegra,
-Wiki content, or the
-<a href="https://github.com/OE4T/tegra-demo-distro/issues">tegra-demo-distro</a>.</li>
-<li>Use the Q&amp;A category for questions about how to build or modify your Tegra
-target based on the content here.</li>
-<li>Use the “Show and Tell” category for any projects you’d like to share which
-are related to meta-tegra.</li>
-<li>Use the General channel for anything that doesn’t fit well into the categories
-above, and which doesn’t relate to a build or runtime issue with Tegra yocto
-builds.</li>
-</ul>
-<h2 id="reporting-issues"><a class="header" href="#reporting-issues">Reporting Issues</a></h2>
-<p>Use the <a href="https://github.com/OE4T/meta-tegra/issues">Issues tab in meta-tegra</a>
-for reporting build or runtime issues with Tegra yocto build targets.  When
-reporting build or runtime issues, please include as much information about your
-environment as you can. For example, the target hardware you are building for,
-branch/version information, etc.  Please fill in the provided bug template when
-reporting issues.</p>
-<p>We are required to provide an e-mail address, but please use GitHub as
-described above, instead of sending e-mail to oe4t-questions@madison.systems.</p>
-<h2 id="contributing"><a class="header" href="#contributing">Contributing</a></h2>
-<p>Please see <a href="CONTRIBUTING.html">CONTRIBUTING.md</a> for information on submitting
-patches to the maintainers.</p>
-<p>Contributions are welcome!</p>
+                        <p>I thought I would add this here in the event someone else is searching for how to add a PPS input to TX1/TX2 systems.  Hours of reading and searching yielded nothing other than the fact that NVIDIA doesn’t support it on the dev kits and they don’t provide any more information. I hope that someone can take this and use it for what they need, whether on commercial carriers or even on the dev kit board – maybe this is fairly common knowledge to those who work in device trees all the time, but for a noob to ARM and device trees, I would have found a page like this extremely valuable.</p>
+<p>My setup is I have a TX1 on the Astro carrier from ConnectTech.  I’m using the pyro-r24.2.2 branch of meta-tegra and pyro for poky/meta-openembedded.</p>
+<p>I requested the DTS files for the ASG001 (Astro carrier) from ConnectTech and created my own machine layer, using the jetson-tx1 machine from meta-tegra as a starting point.  This utilizes the 3.10 kernel.</p>
+<p>To enable PPS support, I added the following block immediately below the gpio@6000d000 section of mono-tegra210-jetson-tx1-CTI-ASG001.dts:</p>
+<pre><code>        pps {
+                gpios = &lt;&amp;{/gpio@6000d000} 187 0&gt;;
+
+                compatible = "pps-gpio";
+                status = "okay";
+        };
+</code></pre>
+<p>This only added PPS support to the device tree, however the 3.10 kernel doesn’t support PPS GPIO clients on the device tree, so that support needed to be added by manually applying this patch to the source (I applied it in the tmp/work-shared kernel source git repo and created a patch I used in my linux-tegra bbappend):  https://github.com/beagleboard/meta-beagleboard/blob/master/common-bsp/recipes-kernel/linux/linux-mainline-3.8/pps/0003-pps-gpio-add-device-tree-binding-and-support.patch</p>
+<p>For later releases (it appears as early as R27.1), PPS GPIO support for device trees is present in the linux-tegra kernel, so the only requirement is adding the pps block to the DTS.</p>
+<p>Finally, ensure that CONFIG_PPS and CONFIG_PPS_CLIENT_GPIO are enabled in your kernel configuration (I copied the defconfig, modified it, and added a do_configure_prepend() to my bbappend).</p>
+<pre><code>do_configure_prepend() {
+        cp ${WORKDIR}/defconfig-cti ${WORKDIR}/defconfig
+}
+</code></pre>
+<p>At that point, build a typical image (I use core-image-full-cmdline - I take it others will work the same way) gives a functional PPS input into the kernel.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="Over-the-air-reflashing-process.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="Controlling-Jetson-pin-states.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="Redundant-Rootfs-A-B-Partition-Support.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -240,8 +213,11 @@ patches to the maintainers.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="Over-the-air-reflashing-process.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="Controlling-Jetson-pin-states.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="Redundant-Rootfs-A-B-Partition-Support.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

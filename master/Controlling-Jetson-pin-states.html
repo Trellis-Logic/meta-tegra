@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - OE4T Meta Tegra</title>
+        <title>Instructions for r35 - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -175,62 +175,93 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="openembeddedyocto-bsp-layer-for-nvidia-jetson-modules"><a class="header" href="#openembeddedyocto-bsp-layer-for-nvidia-jetson-modules">OpenEmbedded/Yocto BSP layer for NVIDIA Jetson Modules</a></h1>
-<p>Jetson Linux release: R36.4.4
-JetPack release:      6.2.1</p>
-<p>Boards supported:</p>
+                        <h1 id="instructions-for-r35"><a class="header" href="#instructions-for-r35">Instructions for r35</a></h1>
+<p>See https://github.com/OE4T/tegra-demo-distro/discussions/310#discussioncomment-10534547</p>
+<ol>
+<li>Grab the pinmux spreadsheet and configure the pins the way you need then generate the new files https://developer.nvidia.com/downloads/jetson-orin-nx-and-orin-nano-series-pinmux-config-template.</li>
+<li>This will give you three new dtsi files. You need to match up what these are with your machine and meld them to get the changes you need from the machine. The relevant recipe is <code>tegra-bootfiles</code></li>
+<li>Build in these recipes <code>libgpiod libgpiod-tools libgpiod-dev</code></li>
+<li>Back at the command line run <code>gpioinfo</code> and grep on your gpio you want. For my case I wanted <code>GGPIO3_PCC.00</code></li>
+<li>Take the controller name (0 or 1 for me) and the line and you should now be able to <code>gpioset -c 1 12=1</code> to set. where the c is the controller number and 12 is the line number.</li>
+</ol>
+<p>Good reference https://docs.nvidia.com/jetson/archives/r35.3.1/DeveloperGuide/text/HR/JetsonModuleAdaptationAndBringUp/JetsonOrinNxNanoSeries.html#generating-the-pinmux-dtsi-files</p>
+<h1 id="jetpack-4-instructions-for-controlling-the-pin-states-on-the-jetson-tx2-som"><a class="header" href="#jetpack-4-instructions-for-controlling-the-pin-states-on-the-jetson-tx2-som">Jetpack 4 instructions for Controlling the pin states on the Jetson TX2 SoM</a></h1>
+<p>There’s two ways:</p>
 <ul>
-<li>Jetson AGX Orin development kit</li>
-<li>Jetson Orin NX 16GB (p3767-0000) in Xavier NX (p3509) carrier</li>
-<li>Jetson Orin NX 16GB (p3767-0000) in Orin Nano (p3768) carrier</li>
-<li>Jetson Orin Nano development kit</li>
-<li>Jetson AGX Orin Industrial 64GB (P3701-0008) in Orin AGX (P3737) carrier</li>
+<li>Through bootloader configuration.</li>
+<li>Through using the virtual /sys filesystem in userspace.</li>
 </ul>
-<p>This layer depends on:
-URI: git://git.openembedded.org/openembedded-core
-branch: master
-LAYERSERIES_COMPAT: whinlatter</p>
-<h2 id="cuda-toolchain-compatibility-note"><a class="header" href="#cuda-toolchain-compatibility-note">CUDA toolchain compatibility note</a></h2>
-<p>CUDA 12.6 supports up through gcc 13.2 only, so recipes are included
-for adding the gcc 10 toolchain to the build for CUDA use, and <code>cuda.bbclass</code>
-has been updated to pass the g++ 10 compiler to nvcc for CUDA code compilation.</p>
-<h2 id="getting-help"><a class="header" href="#getting-help">Getting Help</a></h2>
-<p>For general build issues or questions about getting started with your build
-setup please use the
-<a href="https://github.com/OE4T/meta-tegra/discussions">Discussions</a> tab of the
-meta-tegra repository:</p>
+<h2 id="pin-settings-in-bootloader-configuration"><a class="header" href="#pin-settings-in-bootloader-configuration">Pin settings in bootloader configuration</a></h2>
+<h3 id="summary"><a class="header" href="#summary">Summary</a></h3>
+<p>You need to do the following:</p>
+<ol>
+<li>Download an Microsoft Excel sheet(!) containing some macros(!!) and the L4T (“Linux For Tegra”) package from Nvidias downloadcenter. Note: For this you need a Nvidia developer account.</li>
+<li>In the Excel sheet, select the desired pin configuration using cell dropdown menus. Use the embedded macro to write out some device tree files.</li>
+<li>Use a Python script which comes with L4T to convert the device tree files into something file the bootloader can understand.</li>
+<li>Embed the bootloader configuration in the Yocto source tree.</li>
+</ol>
+<h3 id="detailed-steps"><a class="header" href="#detailed-steps">Detailed steps</a></h3>
+<p>As an example, the following guide walks you through reconfiguring pin A9 from it’s default state (output GND) to input with weak pull-up.</p>
+<ol>
+<li>The MS Excel part:
+<ol>
+<li>Visit the <a href="https://developer.nvidia.com/embedded/downloads">Nvidia developer download center</a> and search for <code>Jetson TX2 Series Pinmux</code>. <a href="https://developer.nvidia.com/embedded/dlc/jetson-tx2-series-module-pinmux">Here’s a direct link for 1.08</a>. Download and run it with macros enabled.</li>
+<li>On the second sheet you’ll find the configuration for pin <code>A9</code> on (at the time of writing) line 246. Cells in columns <code>AR</code> and <code>AS</code> define it as output grounding the signal. Change these cells to <code>Input</code> and <code>Int PU</code>.</li>
+<li>At the very top of the sheet, click the button labeled <code>Generate DT file</code>. Some dialogues will pop up which asks for stuff and have an effect on the filename.</li>
+</ol>
+</li>
+<li>The Python part:
+<ol>
+<li>Go to the <a href="https://developer.nvidia.com/embedded/downloads">Nvidia developer download center</a> and search for <code>Jetson Linux Driver Package (L4T)</code>. Follow the link to the <code>L4T x.y.z Release Page</code>. (For example, <a href="https://developer.nvidia.com/embedded/linux-tegra-r32.4.3">here’s the one for R32.4.3</a>.) There, you should find a link labeled <code>L4T Driver Package (BSP)</code> leading to some tarball named similar to <code>Tegra186_Linux_Rx.y.z_aarch64.tbz2</code>. (Again, as an example <a href="https://developer.nvidia.com/embedded/L4T/r32_Release_v4.3/t186ref_release_aarch64/Tegra186_Linux_R32.4.3_aarch64.tbz2">here’s the one for R32.4.3</a>.). Uncompress it and change to <code>Linux_for_Tegra/kernel/pinmux/t186/</code> inside.</li>
+<li>Run the <code>pinmux-dts2cfg.py</code> in the following way:</li>
+</ol>
+<pre><code>python pinmux-dts2cfg.py \
+    --pinmux \
+    addr_info.txt \
+    gpio_addr_info.txt \
+    por_val.txt \
+    --mandatory_pinmux_file mandatory_pinmux.txt \
+    /path/to/your/excel-created/tegra18x-jetson-tx2-config-template-*-pinmux.dtsi \
+    /path/to/your/excel-created/tegra18x-jetson-tx2-config-template-*-gpio-*.dtsi \
+    1.0 \
+    &gt; /tmp/new.cfg
+</code></pre>
+If it throws errors, it might be <a href="https://forums.developer.nvidia.com/t/pinmux-dts2cfg-py-errors-with-default-pinmux/185782">related to this</a>.</li>
+<li>Add a patch in your distro layer reflecting the pin settings in your <code>/tmp/new.cfg</code> created above.</li>
+</ol>
+<h2 id="controllingreading-the-pin-state-from-userspace"><a class="header" href="#controllingreading-the-pin-state-from-userspace">Controlling/reading the pin state from userspace</a></h2>
+<p>You can control/read the pin value from the virtual /sys filesystem <a href="https://forums.developer.nvidia.com/t/how-to-configure-gpio-to-input-pullup-from-userspace/191759/5">but not the pull up/down state</a>.</p>
+<p>Software-wise, the GPIOs have other names than on the schematic. Nvidia doesn’t make it easy to go from schematic name (like <code>A9</code>) to the /sys name (like <code>gpio488</code>). The following user contributed posts explain it better than anything Nvidia has come up with so far:</p>
 <ul>
-<li>Use the Ideas category for anything you’d like to see included in meta-tegra,
-Wiki content, or the
-<a href="https://github.com/OE4T/tegra-demo-distro/issues">tegra-demo-distro</a>.</li>
-<li>Use the Q&amp;A category for questions about how to build or modify your Tegra
-target based on the content here.</li>
-<li>Use the “Show and Tell” category for any projects you’d like to share which
-are related to meta-tegra.</li>
-<li>Use the General channel for anything that doesn’t fit well into the categories
-above, and which doesn’t relate to a build or runtime issue with Tegra yocto
-builds.</li>
+<li>https://forums.developer.nvidia.com/t/gpio-doesnt-work/49203/14</li>
+<li>https://forums.developer.nvidia.com/t/gpio-doesnt-work/49203/2</li>
+<li><a href="https://forums.developer.nvidia.com/t/what-is-the-gpio-number-is-g8-and-f7-pin-at-tx2/82220/3">This post</a> contains the equations in the links above solved for all possible input values.</li>
 </ul>
-<h2 id="reporting-issues"><a class="header" href="#reporting-issues">Reporting Issues</a></h2>
-<p>Use the <a href="https://github.com/OE4T/meta-tegra/issues">Issues tab in meta-tegra</a>
-for reporting build or runtime issues with Tegra yocto build targets.  When
-reporting build or runtime issues, please include as much information about your
-environment as you can. For example, the target hardware you are building for,
-branch/version information, etc.  Please fill in the provided bug template when
-reporting issues.</p>
-<p>We are required to provide an e-mail address, but please use GitHub as
-described above, instead of sending e-mail to oe4t-questions@madison.systems.</p>
-<h2 id="contributing"><a class="header" href="#contributing">Contributing</a></h2>
-<p>Please see <a href="CONTRIBUTING.html">CONTRIBUTING.md</a> for information on submitting
-patches to the maintainers.</p>
-<p>Contributions are welcome!</p>
+<p>Having found out the /sys name for your pin, you can take following snippets as an example:</p>
+<p>The following snippet sets the gpio to output-low.</p>
+<pre><code># GPIO488 is A9 on the SoM
+pin=488
+echo $pin &gt; /sys/class/gpio/export
+echo out  &gt; /sys/class/gpio/gpio$pin/direction
+echo 0    &gt; /sys/class/gpio/gpio$pin/value
+</code></pre>
+<p>The following snippet sets the pin to input and reads its logical state:</p>
+<pre><code># GPIO488 is A9 on the SoM
+pin=488
+echo $pin &gt; /sys/class/gpio/export
+echo in   &gt; /sys/class/gpio/gpio$pin/direction
+cat         /sys/class/gpio/gpio$pin/value
+</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="Controlling-Jetson-pin-states.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="Creating-a-custom-MACHINE.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -240,8 +271,11 @@ patches to the maintainers.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="Controlling-Jetson-pin-states.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="Creating-a-custom-MACHINE.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

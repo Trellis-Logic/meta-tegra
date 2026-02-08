@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - OE4T Meta Tegra</title>
+        <title>Overview of the process - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -175,62 +175,225 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="openembeddedyocto-bsp-layer-for-nvidia-jetson-modules"><a class="header" href="#openembeddedyocto-bsp-layer-for-nvidia-jetson-modules">OpenEmbedded/Yocto BSP layer for NVIDIA Jetson Modules</a></h1>
-<p>Jetson Linux release: R36.4.4
-JetPack release:      6.2.1</p>
-<p>Boards supported:</p>
+                        <p>There may be times when you need to perform the equivalent of a
+re-flashing of your Jetson-based device without being able to use
+the normal flashing process via USB. This is possible, although
+there are some risks, and it requires careful setup and testing.</p>
+<p>Possible applications:</p>
 <ul>
-<li>Jetson AGX Orin development kit</li>
-<li>Jetson Orin NX 16GB (p3767-0000) in Xavier NX (p3509) carrier</li>
-<li>Jetson Orin NX 16GB (p3767-0000) in Orin Nano (p3768) carrier</li>
-<li>Jetson Orin Nano development kit</li>
-<li>Jetson AGX Orin Industrial 64GB (P3701-0008) in Orin AGX (P3737) carrier</li>
+<li>
+<p>You need to alter the layout of the partitions in the Jetson’s
+eMMC storage.</p>
+</li>
+<li>
+<p>You need to update a Jetson running software based off an older
+version of the L4T BSP to a newer version that requires a modified
+layout of the eMMC and/or SPI flash (for Jetsons that have a
+SPI flash boot device).</p>
+</li>
+<li>
+<p>You just need the equivalent of a full “factory reset” that
+restores the device to a pristine state.</p>
+</li>
 </ul>
-<p>This layer depends on:
-URI: git://git.openembedded.org/openembedded-core
-branch: master
-LAYERSERIES_COMPAT: whinlatter</p>
-<h2 id="cuda-toolchain-compatibility-note"><a class="header" href="#cuda-toolchain-compatibility-note">CUDA toolchain compatibility note</a></h2>
-<p>CUDA 12.6 supports up through gcc 13.2 only, so recipes are included
-for adding the gcc 10 toolchain to the build for CUDA use, and <code>cuda.bbclass</code>
-has been updated to pass the g++ 10 compiler to nvcc for CUDA code compilation.</p>
-<h2 id="getting-help"><a class="header" href="#getting-help">Getting Help</a></h2>
-<p>For general build issues or questions about getting started with your build
-setup please use the
-<a href="https://github.com/OE4T/meta-tegra/discussions">Discussions</a> tab of the
-meta-tegra repository:</p>
+<p>This page walks through a basic example of how to do this, using
+tools and scripts that you can modify/adapt as needed. The example
+uses a Jetson-TX2 development kit target; it has also been tested
+with Xavier and Nano development kits.</p>
+<h1 id="overview-of-the-process"><a class="header" href="#overview-of-the-process">Overview of the process</a></h1>
+<p>The goal here is to perform the equivalent of a USB “tegraflash”
+on the running device. What that entails is: erasing/reformatting
+the storage devices on the Jetson module and writing the correct
+boot code/data, kernel, rootfs, etc. so that on reboot, the
+device successfully boots into the image.</p>
+<p>To do this under Linux, we can’t be running in a rootfs that is
+mounted in the on-module storage. If your device supports external
+storage that is bootable, you could use that, or you could run
+the process entirely from an initial RAM disk loaded with the
+Linux kernel. The following example uses the latter approach.</p>
+<h1 id="ingredients"><a class="header" href="#ingredients">Ingredients</a></h1>
 <ul>
-<li>Use the Ideas category for anything you’d like to see included in meta-tegra,
-Wiki content, or the
-<a href="https://github.com/OE4T/tegra-demo-distro/issues">tegra-demo-distro</a>.</li>
-<li>Use the Q&amp;A category for questions about how to build or modify your Tegra
-target based on the content here.</li>
-<li>Use the “Show and Tell” category for any projects you’d like to share which
-are related to meta-tegra.</li>
-<li>Use the General channel for anything that doesn’t fit well into the categories
-above, and which doesn’t relate to a build or runtime issue with Tegra yocto
-builds.</li>
+<li>The <a href="https://github.com/madisongh/tegra-sysinstall">tegra-sysinstall</a> repo contains
+the scripts that execute the overall process.</li>
+<li>The <a href="https://github.com/OE4T/tegra-boot-tools">tegra-boot-tools</a> repo contains the
+tools for writing the boot partitions.</li>
+<li>Example recipes for creating the initramfs image for the TX2 running an old
+L4T R32.1-based build are <a href="https://github.com/madisongh/test-distro/tree/warrior/layers/meta-testdistro/recipes-upgrader">here</a>.</li>
+<li>The new image, based on L4T R32.5.0, is built from <a href="https://github.com/madisongh/tegra-test-distro/tree/dunfell-l4t-r32.5.0">this test distro</a>.</li>
 </ul>
-<h2 id="reporting-issues"><a class="header" href="#reporting-issues">Reporting Issues</a></h2>
-<p>Use the <a href="https://github.com/OE4T/meta-tegra/issues">Issues tab in meta-tegra</a>
-for reporting build or runtime issues with Tegra yocto build targets.  When
-reporting build or runtime issues, please include as much information about your
-environment as you can. For example, the target hardware you are building for,
-branch/version information, etc.  Please fill in the provided bug template when
-reporting issues.</p>
-<p>We are required to provide an e-mail address, but please use GitHub as
-described above, instead of sending e-mail to oe4t-questions@madison.systems.</p>
-<h2 id="contributing"><a class="header" href="#contributing">Contributing</a></h2>
-<p>Please see <a href="CONTRIBUTING.html">CONTRIBUTING.md</a> for information on submitting
-patches to the maintainers.</p>
-<p>Contributions are welcome!</p>
+<h2 id="key-considerations"><a class="header" href="#key-considerations">Key considerations</a></h2>
+<ul>
+<li>
+<p>The <a href="https://github.com/madisongh/tegra-test-distro/blob/dunfell-l4t-r32.5.0/layers/meta-testdistro/recipes-bsp/tegra-binaries/custom-flash-layout/flash_jetson-tx2-devkit_custom.xml">flash layout</a> from the new image build is used to generate configuration files that the
+tools use for correctly re-partitioning the storage devices.  To ensure that the bootloaders and Linux agree on the eMMC partition layout, the primary GPT must be at least 16,896 bytes (33 512-byte sectors). (This is the case with the stock flash layouts for all recent releases of L4T.)</p>
+</li>
+<li>
+<p>The <code>partition_table</code> file generated by the <a href="https://github.com/madisongh/tegra-test-distro/blob/dunfell-l4t-r32.5.0/layers/meta-testdistro/recipes-devtools/tegra-tools/sysinstall-partition-layout_1.0.bb">sysinstall-partition-layout</a> recipe from the R32.5.0-based build
+must be copied into the <a href="https://github.com/madisongh/test-distro/blob/warrior/layers/meta-testdistro/recipes-upgrader/tools/sysinstall-partition-layout/jetson-tx2/partition_table">metadata for the warrior/R32.1-based build</a>, since that file will be part of the warrior-based initramfs.</p>
+</li>
+<li>
+<p>The <code>tegra-bootloader-update</code> tool uses a BUP payload as the source of the
+contents for all of the boot partitions. The stock L4T BUP payload generator does
+<strong>not</strong> include all of the boot partition contents.  <a href="https://github.com/OE4T/meta-tegra/commit/3e9d2bcedc812ff77a4e93da9cc4b05e1877591c">Recent commits into meta-tegra</a>
+include patches for the generator to include the missing pieces for TX2 and Xavier
+platforms. <strong>Update 10 Jun 2021:</strong> The additions to the BUP payload turned out to be
+incompatible with the stock L4T <code>nv_upgrade_engine</code> bootloader update program on the
+TX2 and were reworked <a href="https://github.com/OE4T/meta-tegra/commit/ab3f5bc5b178762245469dbc90ba9312bc06f369">here</a>
+to create an alternate payload that contains the full complement of boot partitions
+for TX2-based platforms.</p>
+</li>
+<li>
+<p>The <code>tegra-sysinstall</code> script expects the new rootfs image to be in tarball form,
+and does not perform any authentication or sanity checking on the image, so it is
+only usable for development purposes and should not be used in production.</p>
+</li>
+</ul>
+<h1 id="build-process"><a class="header" href="#build-process">Build process</a></h1>
+<ul>
+<li>
+<p>The R32.5.0-based build includes <code>tegra-bup-payload</code>, which installs a BUP payload in
+<code>/opt/ota_package</code> and pulls in the bootloader update tool. The <code>demo-image-egl</code> image was
+used for this example.  Note that it has <code>IMAGE_FSTYPES</code> set to include building a <code>tar.gz</code>
+tarball for the rootfs.</p>
+</li>
+<li>
+<p>The <a href="https://github.com/madisongh/test-distro/blob/warrior/layers/meta-testdistro/recipes-upgrader/images/sysinstall-upgrader-initramfs.bb">sysinstall-upgrader-initramfs</a> recipe
+in the warrior/R32.1-based tree builds a BUP payload containing the kernel and initrd suitable for installing with <code>nv_update_engine</code> on a system running an R32.1-based image. (Note that for platforms using U-Boot, installing the initrd would require a different process.)</p>
+</li>
+<li>
+<p>The <code>core-image-base</code> image from the warrior/R32.1 tree was used as the starting point for the example.</p>
+</li>
+</ul>
+<h1 id="process-steps"><a class="header" href="#process-steps">Process steps</a></h1>
+<ol>
+<li>
+<p>Start by flashing the R32.5.0-based image directly on the TX2. Use <code>sgdisk /dev/mmcblk0 --print</code> to display the partition table, and save that output so you can compare the results against the partition table created later during the installation process.</p>
+</li>
+<li>
+<p>Boot the <code>core-image-base</code> image from the warrior/R32.1-based distro on the TX2.</p>
+</li>
+<li>
+<p>Because the filesystem size is not expanded out to the full APP partition size in this build,
+use <code>mkfs.ext4</code> to format the UDA partition, and mount that at <code>/mnt</code>.</p>
+</li>
+<li>
+<p><code>rmdir /opt/ota_package</code>, then <code>ln -sn /mnt /opt/ota_package</code> to provide space
+for the BUP payload.</p>
+</li>
+<li>
+<p>Use <code>wget</code> to download the <code>sysinstall-upgrader-initramfs-jetson-tx2.bup-payload</code> built
+in the warrior/R32.1-based build tree as <code>/opt/ota_package/bl_update_payload</code>.</p>
+</li>
+<li>
+<p>Use <code>nv_update_engine --enable-ab</code>, then <code>nv_update_engine --install no-reboot</code> to
+install the BUP payload. If successful, <code>reboot</code>.</p>
+</li>
+<li>
+<p>The kernel command line in the initramfs image doesn’t have <code>console=</code> set, so be patient while
+the image loads (takes about a minute or so) - there is no kernel output during the boot.</p>
+</li>
+<li>
+<p><code>mkdir /var/extra</code>, as this directory is needed as a mount point during the installation.</p>
+</li>
+<li>
+<p><code>mkdir /installer</code> and use <code>wget</code> or <code>curl</code> to download the <code>demo-image-egl-jetson-tx2-devkit.tar.gz</code>
+tarball from the R32.5.0-based build, naming it <code>/installer/image.tar.gz</code>.</p>
+</li>
+<li>
+<p><code>tegra-sysinstall</code> to start the installation process. After it reformats the eMMC, the script will display the new partition table. Verify that the partition start and end sectors match the ones displayed in step 1 (after flashing the R32.5.0 image directly). If there is a mismatch, the device will probably not boot properly.</p>
+</li>
+</ol>
+<p>This section could be customized for a specific delivery mechanism.  For instance,
+instead of using wget to download the BUP payload, the package could be delivered through
+your preferred update mechanism.  If using an A/B update scheme like the one used for
+<code>tegrademo-mender</code> it should be possible to use the filesystem in the new boot partition
+to host the BUP payload and image content.</p>
+<h2 id="installation-steps"><a class="header" href="#installation-steps">Installation steps</a></h2>
+<p>These are the steps performed by <code>tegra-sysinstall</code>:</p>
+<ol>
+<li>
+<p>The <code>sgdisk</code> command (from the <code>gptfdisk</code> package) is used to zap the GPT partition
+table and create all of the partitions on the eMMC, based on the configuration file
+at <code>/usr/share/tegra-sysinstall/partition_table</code>.</p>
+</li>
+<li>
+<p>The APP, APP_b, DATA, LOGS, and EXTRA partitions are formatted using <code>mkfs.ext4</code>.</p>
+</li>
+<li>
+<p>The EXTRA partition is mounted at <code>/var/extra</code> for use as temporary storage.</p>
+</li>
+<li>
+<p>The rootfs tarball is unpacked into the APP partition, then into the APP_b partition.</p>
+</li>
+<li>
+<p>The boot partitions are initialized by <code>chroot</code>ing into the just-installed APP partition
+to run <code>tegra-bootloader-update --initialize</code> using the BUP payload and
+<code>/usr/share/tegra-boot-tools/boot-partitions.conf</code> configuration file from the just-installed
+rootfs.</p>
+</li>
+</ol>
+<p>Once the above steps are complete, the device can be rebooted, and should boot into
+the 32.5.0-based image.</p>
+<p>(Please note that the <code>tegra-sysinstall</code> scripts were developed to test support for
+secure boot combined with LUKS encrypted filesystems and programming a unique machine
+ID in the odm_reserved fuses, so there are several functions in the scripts that can
+be ignored/skipped for testing the installation process.)</p>
+<h1 id="things-to-watch-out-for"><a class="header" href="#things-to-watch-out-for">Things to watch out for</a></h1>
+<ul>
+<li>
+<p>If the initramfs with the installation tools is too large for cboot to handle properly
+(it has some compiled-in limits on the amount of memory it can reserve for the initial
+RAM disk), you’ll see data abort errors on the serial console.</p>
+</li>
+<li>
+<p>If the BUP payload is missing any of the boot-related contents, the device will fail
+to boot when rebooting after the installation process is complete - one of the early-stage
+bootloaders will report errors on the serial console, and the device should go into
+USB recovery mode.</p>
+</li>
+<li>
+<p>The above can also happen if there is a mismatch in the starting offsets and/or sizes
+of any of the boot partitions in the eMMC and the expected offsets that got built into
+the boot control tables for the bootloader during BUP generation. It’s important that
+the <code>/usr/share/tegra-sysinstall/partition_table</code> configuration file in the
+initramfs gets correctly generated from the same flash layout XML file that you are
+using for the <em>image you are upgrading to</em>.</p>
+</li>
+<li>
+<p>Any power interruption or other event that causes the device to reset or reboot, or
+otherwise interrupt the reflashing process, will render the device unbootable. Since
+the process can take several minutes (depending on the specific hardware, size of the
+image being installed, etc.), use of this process should be managed carefully.</p>
+</li>
+<li>
+<p>Full BUP support in meta-tegra, covering multiple module revisions in a single payload,
+was added with the update to <a href="L4T-R32.3.1-Notes.html#bootloader-update-support">L4T R32.3.1</a>.
+If you are currently running builds based off an older version of L4T, you may run into
+boot issues after installing the upgrader BUP payload on some TX2 modules.  Adjusting the
+TEGRA_FAB setting in your build configuration to match the actual FAB revision of the
+module(s) you’re using should help with this.</p>
+</li>
+</ul>
+<h1 id="video-walkthrough"><a class="header" href="#video-walkthrough">Video walkthrough</a></h1>
+<p>See the <a href="https://youtu.be/8Rc46O9Fyu4">OE4T May 2021 meeting video</a> and <a href="https://github.com/OE4T/meta-tegra/wiki/OE4T-Meeting-Notes---2021-05-13">notes</a>
+for initial discussion and walkthrough of the content discussed here.</p>
+<h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
+<ul>
+<li>Jetson TX2 - upgrade from <a href="https://github.com/madisongh/test-distro/tree/warrior/">L4T R32.1-based build</a>
+to <a href="https://github.com/OE4T/tegra-demo-distro/tree/dunfell-l4t-r32.4.3">L4T R32.4.3-based build</a></li>
+<li>Jetson TX2 - upgrade from custom Sumo+L4T R28.1-based (U-Boot) build to
+<a href="https://github.com/OE4T/tegra-demo-distro/tree/dunfell-l4t-r32.4.3">L4T R32.4.3-based build</a></li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="OE4T-Contributor-Guide.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="Controlling-Jetson-pin-states.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="PPS-GPIO-Support-on-Jetson-TX1-TX2.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -240,8 +403,11 @@ patches to the maintainers.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="OE4T-Contributor-Guide.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="Controlling-Jetson-pin-states.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="PPS-GPIO-Support-on-Jetson-TX1-TX2.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
