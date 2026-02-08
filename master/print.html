@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-f966af29.js";
+            window.path_to_searchindex_js = "searchindex-91238441.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-fb00983b.js"></script>
+        <script src="toc-e914ec9b.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -225,6 +225,356 @@ described above, instead of sending e-mail to oe4t-questions@madison.systems.</p
 <p>Please see <a href="CONTRIBUTING.html">CONTRIBUTING.md</a> for information on submitting
 patches to the maintainers.</p>
 <p>Contributions are welcome!</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>This total-beginner’s guide will walk you through the process of flashing a newly-generated image your Jetson development kit! The instructions
+here are for branches based off L4T R32.4.3 and later. (For earlier releases, click the revisions count, under the title, to go back to an
+earlier revision of the page.)</p>
+<h1 id="initrd-flashing"><a class="header" href="#initrd-flashing">Initrd Flashing</a></h1>
+<p>For branches based off L4T R35.1.0 and later (<code>master</code>, <code>kirkstone</code>, and <code>langdale</code>), and the <code>kirkstone-l4t-r32.7.x</code> branch, an alternative flashing process (called “initrd flashing”) is available, which supports flashing to a rootfs (<code>APP</code> partition) on an external storage device.  See <a href="#prerequisites-1">this page</a> for more information.</p>
+<p>The table below helps outline the flashing mechanism(s) supported depending on target root filesystem storage for all recent branches (<code>kirkstone-l4t-r32.7.x</code> and later)</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Target Rootfs Storage</th><th>Flashing method</th></tr>
+</thead>
+<tbody>
+<tr><td>on-board eMMC</td><td><code>doflash.sh</code> or <a href="#prerequisites-1">initrd-flash</a></td></tr>
+<tr><td>SDCard</td><td><code>doflash.sh</code> or <a href="#prerequisites-1">initrd-flash</a>. <code>dosdcard.sh</code> may be used for subsequent programming after initial bootloader programming with <code>doflash.sh</code> or <code>initrd-flash</code>.</td></tr>
+<tr><td>NVMe</td><td><a href="#prerequisites-1">initrd-flash</a></td></tr>
+<tr><td>M.2 drive or SATA drive</td><td><a href="#prerequisites-1">initrd-flash</a></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<p>Before you get started, you’ll need the following:</p>
+<ul>
+<li>
+<p>A suitable USB cable. For most Jetsons, this is a type A to micro-B cable, but for the AGX Xavier and AGX Orin dev kits, you’ll need a USB-C cable (or a USB-C to type A cable, if your development host does not have USB-C ports). As NVIDIA mentions in their documentation, it’s important to use a good-quality cable for successful flashing.</p>
+</li>
+<li>
+<p>A free USB port on your development machine. The flashing tools work best if you can connect directly to a port on your system,
+rather than using a USB hub.</p>
+</li>
+<li>
+<p>For L4T R32.5.0 and later, you must have the <code>dtc</code> command in your PATH, since the NVIDIA tools use that command when preparing
+the boot files for some of the Jetsons. On Ubuntu systems, that command is provided by the <code>device-tree-compiler</code> package.</p>
+</li>
+<li>
+<p>For L4T R35 and later, you must have the GNU <code>cpp</code> command in your PATH (and <strong>not</strong> the LLVM/Clang <code>cpp</code>, see #1959).</p>
+</li>
+</ul>
+<p>While not required, a serial console connection is very useful, particularly with troubleshooting flashing problems, since
+the bootloaders only write messages to the serial console.</p>
+<p>Please note, also, that flashing typically does <strong>not</strong> work from a virtual machine. You should be running the flashing tools directly on a Linux host.</p>
+<h3 id="for-sdcard-based-development-kits"><a class="header" href="#for-sdcard-based-development-kits">For SDcard-based development kits</a></h3>
+<p>If you have a Jetson Nano or Jetson Xavier NX development kit, you’ll need a good-quality MicroSDHC/SDXC card, preferably
+16GB or larger. Higher-speed cards (at least UHS-I) are preferred, particularly if you plan to program the SDcard through
+an SDcard reader/writer on your development host. The reader/writer should be high-speed also, and connected through a
+high-speed I/O interface (e.g., USB 3.1).</p>
+<p>Programming an SDcard in a reader/writer attached to your host is also faster (<em>much</em> faster) if you have the <code>bmaptool</code>
+command in your PATH. On Ubuntu systems, that command is provided by the <code>bmap-tools</code> package. (But note that <code>bmaptool</code>
+requires <code>sudo</code>.)</p>
+<p>The Jetson AGX Xavier development kit also supports booting from a MicroSD card instead of the on-board eMMC, with some
+limitations.</p>
+<h3 id="avoiding-sudo"><a class="header" href="#avoiding-sudo">Avoiding sudo</a></h3>
+<p>You can avoid using <code>sudo</code> during the flashing/SDcard writing process (except for using <code>bmaptool</code>, as noted above)
+by adding yourself to suitable groups and installing a <code>udev</code> rules file to give yourself access to the Jetsons via
+USB. The following instructions are for Ubuntu; other distros may have other groups or require additional setup.</p>
+<ul>
+<li>For SDcard writing, add yourself to group <code>disk</code>.</li>
+<li>For USB flashing, add yourself to group <code>plugdev</code>,</li>
+</ul>
+<p>You can use <a href="https://github.com/OE4T/tegra-demo-distro/blob/master/layers/meta-tegrademo/scripts/setup-udev-rules">this script</a> to
+install the <code>udev</code> rules that grant the <code>plugdev</code> group write access to the Jetson devices when they are connected
+in recovery mode to your development host.</p>
+<p>Note that after changing your group membership and/or <code>udev</code> rules, you may need to reboot your development
+host for the changes to take effect. It’s worth this extra setup, though, to eliminate the need for root access.</p>
+<h2 id="building-a-tegraflash-package"><a class="header" href="#building-a-tegraflash-package">Building a tegraflash package</a></h2>
+<p>All of the Jetson machine configurations add a <code>tegraflash</code> image type by default, which generates a compressed tarball
+contains all of the files, tools, and scripts for flashing the device and/or creating a fully-populated SDcard. If you’ve
+successfully run a bitbake build of an image, you should see a file called</p>
+<pre><code>&lt;image-type&gt;-${MACHINE}.tegraflash.tar.gz
+</code></pre>
+<p>or, in more recent branches,</p>
+<pre><code>&lt;image-type&gt;-${MACHINE}.rootfs.tegraflash.tar.&lt;compression&gt;
+</code></pre>
+<p>in the directory <code>$BUILDDIR/tmp/deploy/images/${MACHINE}</code>. where <code>&lt;compression&gt;</code> could be either <code>gz</code> or <code>zst</code>, depending on the branch you are using (zstd replaced gzip as the default compression method in Feb 2025).</p>
+<h3 id="using-an-sdcard-with-the-jetson-agx-xavier"><a class="header" href="#using-an-sdcard-with-the-jetson-agx-xavier">Using an SDcard with the Jetson AGX Xavier</a></h3>
+<p>By default, the <code>tegraflash</code> package for the AGX Xavier is set up for flashing the on-board eMMC. If you want to
+boot your Xavier off an SDcard instead, you should add the following to your build configuration (e.g., in
+<code>$BUILDDIR/conf/local.conf</code>):</p>
+<pre><code>  TEGRA_ROOTFS_AND_KERNEL_ON_SDCARD = "1"
+  ROOTFSPART_SIZE = "15032385536"
+</code></pre>
+<p>The <code>ROOTFSPART_SIZE</code> setting is for a 16GB SDcard; adjust the size as needed for a larger or smaller card.</p>
+<p>With these settings in place, the resulting <code>tegraflash</code> package supports flashing the bootloader file to
+the on-board eMMC, moving the kernel, device tree, and rootfs on the SDcard. Note that this is <em>only</em> supported
+for the Jetson AGX Xavier, and that SDcard booting <em>does not</em> support the bootloader redundancy features.</p>
+<p>With this configuration, there will be two scripts in the <code>tegraflash</code> package: <code>dosdcard.sh</code> for writing the
+SDcard, and <code>doflash.sh</code> for flashing the bootloader partitions to the eMMC.  Run the <code>dosdcard.sh</code> script to
+format and write the SDcard on your development host, insert the SDcard into the slot on the AGX Xavier dev kit,
+then use the <code>doflash.sh</code> to flash the bootloader partitions. (Unlike for Xavier NX devices, you <em>must</em> perform
+these steps separately.)</p>
+<h2 id="unpacking-the-tegraflash-package"><a class="header" href="#unpacking-the-tegraflash-package">Unpacking the tegraflash package</a></h2>
+<p>To flash your Jetson, or create an SDcard image, create an empty directory and use the <code>tar</code> command to
+unpack the <code>tegraflash</code> package into it:</p>
+<pre><code>  $ mkdir ~/tegraflash
+  $ cd ~/tegraflash
+  $ tar -x -f $BUILDDIR/tmp/deploy/images/${MACHINE}/&lt;image-type&gt;-${MACHINE}.tegraflash.tar.gz
+</code></pre>
+<p>Be sure to use the <code>tar</code> command from a terminal window. Some users have reported issues with incorrect
+results when extracting files using GUI-based tools.</p>
+<h2 id="setting-up-for-flashing"><a class="header" href="#setting-up-for-flashing">Setting up for flashing</a></h2>
+<ol>
+<li>Start with your Jetson powered off. (NVIDIA recommends connecting hardware only while the device is powered off.)</li>
+<li>Connect the USB cable from your Jetson to your development host.</li>
+<li>Insert an SDcard into the slot on the module, if needed.</li>
+<li>Power on the Jetson and put it into recovery mode.</li>
+</ol>
+<p>For SDcard-based Jetsons (Nano and Xavier NX), you have the option of programming the SDcard contents
+either during USB flashing or separately using an SDcard reader/writer on your development host. If
+you program the SDcard separately, perform that step first and insert the already-programmed card
+into the slot on the module in step 3 above. (When using an SDcard with the AGX Xavier, you <em>must</em>
+pre-program the SDcard first.)</p>
+<p>To verify that the device is in recovery mode and that the USB cable is connected properly, use the
+following command:</p>
+<pre><code>  $ lsusb -d 0955:
+  Bus 001 Device 006: ID 0955:7c18 NVIDIA Corp. T186 [TX2 Tegra Parker] recovery mode
+</code></pre>
+<p>If you don’t see your Jetson listed, double-check the cable and try the recovery mode sequence
+again.</p>
+<h3 id="recovery-mode-jumpers-and-buttons"><a class="header" href="#recovery-mode-jumpers-and-buttons">Recovery mode jumpers and buttons</a></h3>
+<p>The different Jetson develpoment kits have different mechanisms for entering recovery mode.</p>
+<h4 id="jetson-tx1-and-tx2-development-kits"><a class="header" href="#jetson-tx1-and-tx2-development-kits">Jetson TX1 and TX2 development kits</a></h4>
+<p>Press <em>and hold</em> the REC (“recovery”) button, press and release the RST (“reset”) button. Continue
+to hold the REC button for 3-4 seconds, then release.
+[[images/TX1-TX2-Devkit-RecoveryMode-Button.jpg|alt=TX1-TX2 buttons]]</p>
+<h4 id="jetson-agx-xavier-development-kit"><a class="header" href="#jetson-agx-xavier-development-kit">Jetson AGX Xavier development kit</a></h4>
+<p>Press <em>and hold</em> the center button, and press and release the reset button (on the right).
+[[images/AGX-Xavier-RecoveryMode-Button.jpg|alt=AGX Xavier buttons]]</p>
+<h4 id="jetson-orin-development-kit"><a class="header" href="#jetson-orin-development-kit">Jetson Orin development kit</a></h4>
+<p>Press <em>and hold</em> the center button. Then plug in the power supply. Release the center button.  Note that it can take 10-15 seconds for the device to fully enter recovery mode and export its serial console after power up.</p>
+<h4 id="all-jetson-nano-xavier-nx-development-kits"><a class="header" href="#all-jetson-nano-xavier-nx-development-kits">All Jetson Nano, Xavier NX development kits</a></h4>
+<p>Connect a jumper between the 3rd and 4th pins from the right hand side of “button header”
+underneath the back of the module (FRC and GND; see the labeling on the underside of the
+carrier board). The module will power up in recovery mode automatically.
+[[images/Nano-NX-RecoveryMode-Jumper.jpg|alt=Nano-Xavier pins]]</p>
+<p>For the older Jetson Nano rev A02 carrier boards, the FRC pin is in the 8-pin header next to
+the module, beside the MIPI-CSI camera interface. The pins are labeled on the underside of
+the carrier board.
+<img src="https://user-images.githubusercontent.com/227565/112763078-4475dd80-8fc0-11eb-8670-a2d13f0c5083.png" alt="Nano A02 pins"></p>
+<h2 id="writing-an-sdcard"><a class="header" href="#writing-an-sdcard">Writing an SDcard</a></h2>
+<p>If you want to program the SDcard contents directly onto the card from your development host:</p>
+<ol>
+<li>Insert the card into the reader/writer on your host.</li>
+<li><em>Carefully</em> determine the device name for the card. <strong>Using the wrong device name could destroy your host’s filesystems.</strong></li>
+<li>Run the <code>dosdcard.sh</code> script to program the card.</li>
+</ol>
+<p>Here is an example, for a system where <code>/dev/sda</code> is the device name of the card:</p>
+<pre><code>$ ./dosdcard.sh /dev/sda
+</code></pre>
+<p>Remember to use <code>sudo</code>, if needed. The script will ask you to confirm before writing (which you can
+skip by adding <code>-y</code> to the command above).</p>
+<h3 id="creating-an-sdcard-image"><a class="header" href="#creating-an-sdcard-image">Creating an SDcard image</a></h3>
+<p>You can also create an SDcard image file that can later be written to one or more cards:</p>
+<pre><code>$ ./dosdcard.sh &lt;filename&gt;
+</code></pre>
+<p>The resulting file will be quite large, and writing the image can take a long time.</p>
+<h3 id="spi-flash-on-sdcard-based-kits"><a class="header" href="#spi-flash-on-sdcard-based-kits">SPI flash on SDcard-based kits</a></h3>
+<p>The SDcard-based development kits store some (in some cases, all) of the bootloader
+content on a SPI flash device on the Jetson module. You must ensure that the bootloader content
+in this flash device is compatible with the layout on the SDcard you create, since the
+early-stage boot data is programmed with the locations/sizes of SDcard-resident partitions,
+and cannot read the GPT partition table at runtime. To do this, you must perform a USB flash
+to program the SPI flash <strong>at least once</strong> on you development kit, by following the
+steps in the next section.</p>
+<p>Once the SPI flash has been programmed correctly, you should be able to update just
+by writing new SDcard images unless you make changes in your build that affect one
+of the boot-related partitions residing in the SPI flash, or change the flash layout
+XML in a way that alters the location/size of one of the SDcard-resident boot partitions
+(if there are any).</p>
+<h2 id="flashing-the-jetson"><a class="header" href="#flashing-the-jetson">Flashing the Jetson</a></h2>
+<p>Once everything is set up, use the <code>doflash.sh</code> script to program the Jetson:</p>
+<pre><code>$ ./doflash.sh
+</code></pre>
+<p>Remember to use <code>sudo</code> to invoke the script, if needed.  If successful, the Jetson will be rebooted
+into your just-built image automatically after flashing is complete.</p>
+<p>For SDcard-based development kits, you can program <em>just</em> the boot partitions in the SPI flash with:</p>
+<pre><code>$ ./doflash.sh --spi-only
+</code></pre>
+<p>You should insert your programmed SDcard in the slot on the Jetson before performing this step, so
+when the Jetson reboots after the flashing process completes, it will boot into your image.</p>
+<h2 id="automating-unpack-and-flash-steps"><a class="header" href="#automating-unpack-and-flash-steps">Automating Unpack and Flash Steps</a></h2>
+<p>You can use <a href="https://github.com/OE4T/tegra-demo-distro/blob/master/layers/meta-tegrademo/scripts/oe4t-tegraflash-deploy">this script</a> if desired to automate the steps associated with unpacking and running the <code>./doflash.sh</code> script for tegraflashing.</p>
+<h2 id="issues-during-flashing"><a class="header" href="#issues-during-flashing">Issues during flashing</a></h2>
+<p>If you run <code>sudo ./doflash.sh</code> and flashing is started but then it hang in some step like:</p>
+<pre><code>[   1.7586 ] Flashing the device
+[   1.7611 ] tegradevflash --pt flash.xml.bin --storageinfo storage_info.bin --create
+[   1.7636 ] Cboot version 00.01.0000
+[   1.7659 ] Writing partition GPT with gpt.bin
+[   1.7666 ] [................................................] 100%
+[   1.7707 ] Writing partition PT with flash.xml.bin
+[  15.9892 ] [................................................] 100%
+[  15.9937 ] Writing partition NVC with nvtboot.bin.encrypt
+[  16.2433 ] [................................................] 100%
+[  16.2569 ] Writing partition NVC_R with nvtboot.bin.encrypt
+[  26.2706 ] [................................................] 100%
+[  26.2877 ] Writing partition VER_b with jetson-nano-qspi-sd_bootblob_ver.txt
+[  36.3103 ] [................................................] 100%
+[  36.3202 ] Writing partition VER with jetson-nano-qspi-sd_bootblob_ver.txt
+[  36.5833 ] [................................................] 100%
+[  36.5927 ] Writing partition APP with test-image.ext4.img
+[  36.8548 ] [................................................] 100%
+</code></pre>
+<p>or if e.g following:</p>
+<pre><code>[   1.9394 ] 00000007: Written less bytes than expected
+[  21.7219 ] 
+Error: Return value 7
+Command tegradevflash --pt flash.xml.bin --storageinfo storage_info.bin --create
+</code></pre>
+<p>It’s good to connect serial console which in above case will print something like:</p>
+<pre><code>[0020.161] device_write_gpt: Erasing boot device spiflash0
+[0039.824] Erasing Storage Device
+[0039.827] Writing protective mbr
+[0039.833] Error in command_complete 18003 int_status
+[0039.840] Error in command_complete 18003 int_status
+[0039.847] Error in command_complete 18003 int_status
+[0039.852] sending the command failed 0xffffffec in sdmmc_send_command at 109
+[0039.859] switch command send failed 0xffffffec in sdmmc_send_switch_command at 470
+[0039.866] switch cmd send failed 0xffffffec in sdmmc_select_access_region at 1301
+[0039.876] Error in command_complete 18001 int_status
+[0039.883] Error in command_complete 18001 int_status
+[0039.890] Error in command_complete 18001 int_status
+[0039.895] sending the command failed 0xffffffec in sdmmc_send_command at 109
+[0039.902] setting block length failed 0xffffffec in sdmmc_block_io at 945
+[0039.909] block I/O failed 0xffffffec in sdmmc_io at 1215
+[0039.914] block write failed 0xffffffec in sdmmc_bdev_write_block at 178
+[0039.921] device_write_gpt: failed to write protective mbr
+[0039.926] Number of bytes written -20
+[0039.930] Written less bytes than expected with error 0x7
+[0039.935] Write command failed for GPT partition
+</code></pre>
+<p>Things to try:</p>
+<ul>
+<li>! USB cable must be plugged directly to PC host (don’t use USB hub otherwise issues like described above will appear) !</li>
+<li>verify USB cable quality (try to use another one)</li>
+<li>power off/on device and try flashing again</li>
+</ul>
+<h1 id="general-tegraflash-troubleshooting"><a class="header" href="#general-tegraflash-troubleshooting">General Tegraflash Troubleshooting</a></h1>
+<p>See <a href="#general-troubleshooting-tipssuggestions">Tegraflash-Troubleshooting</a></p>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>Notes on extending support for flashing Jetson devices that boot from external storage media (NVMe, USB).</p>
+<p>Last update: 25 Jul 2025</p>
+<p>This is currently supported on branches based off JetPack 5/L4T R35 or later, and <code>kirkstone-l4t-r32.7.x</code>.  For R32.7.x, there is support for T210 (TX1/Nano) as well as T186 (TX2) and T194 (Xavier) targets.</p>
+<h1 id="prerequisites-1"><a class="header" href="#prerequisites-1">Prerequisites</a></h1>
+<p>Beyond the normal host tools required for building and normal flashing, you should also have these commands available on your build host:</p>
+<ul>
+<li><code>sgdisk</code> (from the <code>gdisk</code>/<code>gptfdisk</code> package)</li>
+<li><code>udisksctl</code> (part of the <code>udisks2</code> package)</li>
+</ul>
+<p>You should disable automatic mounting of removable media in your desktop settings. On recent Ubuntu (GNOME), go to Settings -&gt; Removable Media, and check the box next to “Never prompt or start programs on media insertion.”  You may also need to update the <code>/org/gnome/desktop/media-handling/automount</code> setting via <code>dconf</code>.  Check the setting with:</p>
+<pre><code>$ dconf read /org/gnome/desktop/media-handling/automount
+</code></pre>
+<p>If it reports <code>true</code>, set it with:</p>
+<pre><code>$ dconf write /org/gnome/desktop/media-handling/automount false
+</code></pre>
+<p>For Ubuntu 24.04, use <code>gsettings</code>, and also disable <code>automount-open</code>:</p>
+<pre><code>$ gsettings set org.gnome.desktop.media-handling automount false
+$ gsettings set org.gnome.desktop.media-handling automount-open false
+</code></pre>
+<p>If the <code>bmaptool</code> command is available, it will be used for writing to the storage device, which speeds up writes but (currently) requires root privileges (the scripts will automatically use <code>sudo</code> to invoke it when needed).</p>
+<p>No additional host changes should be required</p>
+<p>Your image needs to include a device-tree with <code>usb2-0</code> in <code>otg</code> mode - as <a href="https://github.com/OE4T/linux-tegra-4.9/blob/oe4t-patches-l4t-r32.7.4/nvidia/platform/t19x/jakku/kernel-dts/common/tegra194-p3668-common.dtsi#L127">here</a>.</p>
+<h2 id="avoiding-sudo-1"><a class="header" href="#avoiding-sudo-1">Avoiding Sudo</a></h2>
+<p>Note: <code>sudo</code> access will be needed when writing the disks using <code>bmap-tools</code>. This method below will avoid sudo while mounting/unmounting the flaskpkg and related block devices.</p>
+<p>For running the <code>initrd-flash</code> script without <code>sudo</code>, the host changes mentioned in the “Avoiding sudo” section on the <a href="#initrd-flashing">Flashing the Jetson Dev Kit</a> wiki page still apply.</p>
+<p>In addition, to avoid prompts for authentication at several points in the process you need to configure polkit appropriately.  On Ubuntu 22.04 this can be accomplished with the following script snippet run as sudo root:</p>
+<pre><code>cat &lt;&lt; EOF &gt; /var/lib/polkit-1/localauthority/50-local.d/com.github.oe4t.pkla
+[Allow Mounting for Disk Group]
+Identity=unix-group:disk
+Action=org.freedesktop.udisks2.filesystem-mount
+ResultAny=yes
+
+[Allow Power Off Drive for Disk Group]
+Identity=unix-group:disk
+Action=org.freedesktop.udisks2.power-off-drive
+ResultAny=yes
+EOF
+chmod 644 /var/lib/polkit-1/localauthority/50-local.d/com.github.oe4t.pkla
+systemctl restart polkit
+</code></pre>
+<h1 id="build-configuration"><a class="header" href="#build-configuration">Build configuration</a></h1>
+<p>No configuration is required if you just want to use initrd flashing and still keep your rootfs on the Jetson’s internal storage device. You only need to add a configuration setting if you want to configure your system to have its rootfs (<code>APP</code> partition) on an external storage device.  To do that, add a line to your <code>local.conf</code> such as:</p>
+<pre><code>TNSPEC_BOOTDEV:jetson-xavier-nx-devkit-emmc = "nvme0n1p1"
+</code></pre>
+<ul>
+<li>If trying this out with a different Jetson device, use the MACHINE name for the override in the above.</li>
+<li>If trying USB storage instead of NVMe, use <code>sda1</code> as the boot device, instead of <code>nvme0n1p1</code>.</li>
+</ul>
+<h1 id="flashing-after-build"><a class="header" href="#flashing-after-build">Flashing after build</a></h1>
+<ol>
+<li>Put the Jetson device into recovery mode and connect it to your host via the USB OTG port.</li>
+<li>Unpack the <code>tegraflash</code> tarball into an empty directory.</li>
+<li><code>cd</code> to that directory and run <code>./initrd-flash</code> to start the flashing process.</li>
+</ol>
+<p>The script:</p>
+<ol>
+<li>Uses the RCM boot feature to download a special <a href="https://github.com/OE4T/meta-tegra/blob/master/recipes-core/images/tegra-initrd-flash-initramfs.bb">initrd and kernel</a> that sets up the device as a USB mass storage gadget.</li>
+<li>Waits for the USB storage device to appear on the host, then copies in the bootloader files and a command sequence for the target that instructs it to start the boot device update, and tells it which storage device(s) should be exported to the host for writing.</li>
+<li>Uses the <code>make-sdcard</code> script to write to storage device(s).  This happens in parallel with the target’s programming of the boot device.</li>
+<li>Waits for the target to export another storage device to report its final status and the logs generated on the target. The script copies the device logs into a subdirectory.  When finished, it releases the storage device, and the target reboots automatically.</li>
+</ol>
+<p><strong>Note:</strong> add the current Linux user to the <code>disk</code> group to avoid the usage of <code>sudo</code> to run <code>initrd-flash</code> script.</p>
+<h1 id="re-flashing-just-the-rootfs-storage-device"><a class="header" href="#re-flashing-just-the-rootfs-storage-device">Re-flashing just the rootfs storage device</a></h1>
+<p>The <code>initrd-flash</code> script has a <code>--skip-bootloader</code> option for skipping the programming of the boot partitions, so you can re-flash just the rootfs storage device.  You should only use this option if you have already programmed the boot partitions once with the versions you’re using for your current build.</p>
+<h1 id="possible-future-enhancements"><a class="header" href="#possible-future-enhancements">Possible future enhancements</a></h1>
+<ul>
+<li>Develop the kernel/initrd used here into a more general “recovery” image, and/or applied for cross-version OTA updates, although the specific use cases will probably require something a bit different and need more customization.</li>
+<li>See if something could be done to automate setup when using LUKS encryption.  Direct formatting and partition writing from the host isn’t really an option there.  A hybrid approach (formatting and cryptsetup done on the device, then exporting the encrypted partitions via USB) should be workable.</li>
+</ul>
+<h1 id="how-it-works"><a class="header" href="#how-it-works">How it works</a></h1>
+<ul>
+<li>The helper scripts now support an <code>--external-device</code> option that passes appropriate options to <code>tegraflash.py</code> (needed since one of the BCTs appears to include information the external storage device for the boot chain to work), and an <code>--rcm-boot</code> option to allow direct download/execution of a kernel+initrd image.</li>
+<li>The SDcard-related support in the <code>nvflashxmlparse</code> and <code>make-sdcard</code> scripts was generalized to distinguish between the ‘boot’ device and any ‘rootfs’ device.</li>
+<li>The <code>tegra-flash-init</code> recipe was added to install a minimal init script for the flashing kernel, which sets up a USB mass storage gadget for the device to be flashed.  The serial number advertised by the gadget is the unique chip id (ECID) of the Tegra SoC.</li>
+<li>The <code>initrd-flash</code> script and the flashing kernel/initrd are added to the tegraflash package to drive the process.  The ECID (unique ID) of the SoC is extracted during initial RCM contact and used to locate the correct <code>/dev/sdX</code> device for the partition writing.</li>
+<li>A <code>find-jetson-usb</code> script has been added to wait for the appearance of the Jetson (in recovery mode) on the host USB bus.</li>
+<li>The tegraflash package generator in <code>image_types_tegra.bbclass</code> exports additional settings (e.g., the <code>TNSPEC_BOOTDEV</code> setting) in the file <code>.env.initrd-flash</code> for use by the <code>initrd-flash</code> script.</li>
+<li>The <code>tegra-bootfiles</code> recipe populates an external flash layout (XML) file in addition to the main (internal storage) flash layout file. The default layout from the L4T kit are modified, if required, to ensure that the boot and kernel partitions are present in the correct layout (with no duplicates) when <code>TNSPEC_BOOTDEV</code> set for using external storage.</li>
+</ul>
+<h1 id="notes"><a class="header" href="#notes">Notes</a></h1>
+<ul>
+<li>RCM booting on T194 platforms bypasses the UEFI bootloader, directly loading the kernel from nvtboot.  This means that the kernel/initrd does not have access to any EFI variables.  UEFI <em>is</em> used in the RCM boot chain on T234 platforms.</li>
+<li>On Xavier NX dev kits (SDcard-based), you must still have an SDcard installed in the slot even if you are booting off an external drive. The SDcard must <em>not</em> have an <code>esp</code> or <code>APP</code> partition on it.  You must manually reformat the SDcard, as the flashing process will not do that for you.  For all other Jetsons with internal eMMC storage, the eMMC <em>will</em> be erased as part of the flashing process (and re-partitioned/re-populated for those platforms that store some of the bootloader binaries in the eMMC).</li>
+<li>Based on readings of some NVIDIA dev forum posts, A/B updates in JetPack 5.0 do not work properly in all cases when booting off an external drive.  That is supposed to be fixed in JetPack 5.1.</li>
+<li>Depending on your device’s configuration (e.g., having multiple storage devices attached), you may need to manually configure the boot order in the UEFI bootloader by hitting <code>ESC</code> when UEFI starts, and then selecting <code>Boot Maintenance Manager</code>, then <code>Boot Options</code>, then <code>Change Boot Order</code>.  This is a limitation in JetPack 5.0 that is supposed to be fixed in JetPack 5.1.</li>
+<li>If you use a custom flash layout for your builds, note that there are some limitations on the composition of your flash layout file(s) due to how the bootloaders and the NVIDIA tools work. For example, you cannot use a SPI flash-only layout for internal storage, since the BUP payload generator expects to be able to create a payload containing the kernel/kernel DTB. The generator will fail during the build, since those partitions are not present in the SPI flash.  You also cannot use a single flash layout that includes only the boot partitions (in, for example, SPI flash on AGX Orin and Xavier NX) and the external storage device (<code>nvme</code>).  The tools that generate the MB1 BCT and/or MB2 BCT will error out because those bootloaders cannot access external storage. Hopefully NVIDIA will resolve these limitations in a future release.</li>
+</ul>
+<h1 id="comparison-with-stock-l4t-initrd-flashing"><a class="header" href="#comparison-with-stock-l4t-initrd-flashing">Comparison with stock L4T initrd flashing</a></h1>
+<ul>
+<li>OE builds are per-machine, so much of the additional scripting to handle different targets during the flashing process can be omitted.</li>
+<li>With OE builds, TNSPEC_BOOTDEV selection is performed at build time. Switching back and forth between external rootfs and internal storage should be done with different builds.</li>
+<li>Stock L4T provides its initrd in prebuilt form, which requires disassembling and reassembling the initrd in the flashing scripts.  With OE, we can build the flashing initrd directly.</li>
+<li>Stock L4T requires customizing the external drive’s flash layout to specify the exact size of the storage device, in sectors.  That’s not required with OE builds, which do not use NVIDIA’s flashing tools to partition the external drive.</li>
+<li>Stock L4T inserts udev rules on the host during flashing and does some network setup to talk to the device.  The process implemented for OE builds does not use any networking and does not require any udev rules changes during the flashing process.  You also don’t have to be root to perform initrd-based flashing for OE builds, if you have followed the instructions <a href="#avoiding-sudo">here</a>. (However, the <code>bmaptool copy</code> command used in the <code>make-sdcard</code> script does need root access for its setup, and the script will run it under <code>sudo</code> for you).</li>
+</ul>
+<h1 id="limitations-on-using-an-external-drive-for-the-rootfs"><a class="header" href="#limitations-on-using-an-external-drive-for-the-rootfs">Limitations on using an external drive for the rootfs</a></h1>
+<ul>
+<li>On Jetson TX2 devices, the bootloaders do not have support for loading the kernel from an external drive.  The kernel, initrd, and device tree must reside on the eMMC (along with some of the boot partitions).</li>
+<li>Other Jetsons that boot directly from the eMMC (TX1, Nano-eMMC, Xavier NX-eMMC, AGX Xavier) also need to have some of the boot partitions in the main part of the eMMC.</li>
+<li>With Jetsons running JetPack 5/L4T R35.1.0, you may need to manually interrupt the UEFI bootloader to adjust the boot order to favor the external drive.  Even then, UEFI may attempt a PXE (network) boot first.  (This appears to be fixed with JetPack 5.1/L4T R35.2.1.)</li>
+</ul>
+<h1 id="known-issues"><a class="header" href="#known-issues">Known issues</a></h1>
+<ul>
+<li>On an AGX Orin configured to use an external drive for the rootfs (NVMe), once it has been flashed using <code>initrd-flash</code>, the RCM boot of the <code>initrd-flash</code> kernel stops working; the NVMe-resident OS is booted instead.  This happens with the stock L4T initrd flashing tools also. To work around the problem, clear the partition table on the NVMe drive (e.g., using <code>sgdisk /dev/nvme0n1 --clear</code>) before resetting the Orin into recovery mode to start the re-flashing process.</li>
+<li>On T210 platforms (TX1/Nano), if you use the normal <code>doflash.sh</code> script, boot binaries will get overwritten (due to the way the NVIDIA flashing tools work), and that will cause an “FDT_ERR_BADMAGIC” error if you later try to run <code>initrd-flash</code>.  The error is minor, and probably won’t cause any real issues with the flashing/booting process.  To be safe, though, you should not mix normal and initrd-based flashing in the same tegraflash directory.</li>
+</ul>
+<h1 id="customizing-external-storage-size"><a class="header" href="#customizing-external-storage-size">Customizing External Storage Size</a></h1>
+<p>Beginning with Jetpack 5.1.2 (r35.4.1) (and <a href="https://github.com/OE4T/meta-tegra/commit/43e1bf6fb07650db1df1af575aa54cc0038481f2">this commit</a>), the <code>TEGRA_EXTERNAL_DEVICE_SECTORS</code> variable is used to customize the total size of device containing the root filesystem (as well as all other partitions in <code>PARTITION_LAYOUT_EXTERNAL</code>).  The default size of this variable assumes a device which is at least 64GB in size.</p>
+<p>You may increase your root filesystem size to a value of around 30GB, leaving space for two root filesystem partitions (to support A/B redundancy) and additional partitions by defining <code>ROOTFSPART_SIZE</code> to a 4K aligned value in bytes of ~30 GB using a setting like <code>ROOTFSPART_SIZE = "30032384000"</code> in your local.conf.</p>
+<p>If you have an external device larger than 64GB and would like to use this for a larger root filesystem, in addition to modifying <code>ROOTFSPART_SIZE</code> you will also need to adjust the <code>TEGRA_EXTERNAL_DEVICE_SECTORS</code> to specify a larger size in sectors.  For instance, to specify a ~60 GB rootfs on a 128 GB flash drive use <code>ROOTFSPART_SIZE = "60064768000"</code>and <code>TEGRA_EXTERNAL_DEVICE_SECTORS = "250000000"</code></p>
+<h1 id="general-tegraflash-troubleshooting-1"><a class="header" href="#general-tegraflash-troubleshooting-1">General Tegraflash Troubleshooting</a></h1>
+<p>See <a href="#general-troubleshooting-tipssuggestions">Tegraflash-Troubleshooting</a></p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="instructions-for-r35"><a class="header" href="#instructions-for-r35">Instructions for r35</a></h1>
 <p>See https://github.com/OE4T/tegra-demo-distro/discussions/310#discussioncomment-10534547</p>
@@ -462,244 +812,7 @@ sudo cryptsetup luksClose ${__l4t_enc}
 sudo umount ${__rootfs_original_mountpoint}
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div>
-<p>This total-beginner’s guide will walk you through the process of flashing a newly-generated image your Jetson development kit! The instructions
-here are for branches based off L4T R32.4.3 and later. (For earlier releases, click the revisions count, under the title, to go back to an
-earlier revision of the page.)</p>
-<h1 id="initrd-flashing"><a class="header" href="#initrd-flashing">Initrd Flashing</a></h1>
-<p>For branches based off L4T R35.1.0 and later (<code>master</code>, <code>kirkstone</code>, and <code>langdale</code>), and the <code>kirkstone-l4t-r32.7.x</code> branch, an alternative flashing process (called “initrd flashing”) is available, which supports flashing to a rootfs (<code>APP</code> partition) on an external storage device.  See <a href="#prerequisites-2">this page</a> for more information.</p>
-<p>The table below helps outline the flashing mechanism(s) supported depending on target root filesystem storage for all recent branches (<code>kirkstone-l4t-r32.7.x</code> and later)</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Target Rootfs Storage</th><th>Flashing method</th></tr>
-</thead>
-<tbody>
-<tr><td>on-board eMMC</td><td><code>doflash.sh</code> or <a href="#prerequisites-2">initrd-flash</a></td></tr>
-<tr><td>SDCard</td><td><code>doflash.sh</code> or <a href="#prerequisites-2">initrd-flash</a>. <code>dosdcard.sh</code> may be used for subsequent programming after initial bootloader programming with <code>doflash.sh</code> or <code>initrd-flash</code>.</td></tr>
-<tr><td>NVMe</td><td><a href="#prerequisites-2">initrd-flash</a></td></tr>
-<tr><td>M.2 drive or SATA drive</td><td><a href="#prerequisites-2">initrd-flash</a></td></tr>
-</tbody>
-</table>
-</div>
-<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
-<p>Before you get started, you’ll need the following:</p>
-<ul>
-<li>
-<p>A suitable USB cable. For most Jetsons, this is a type A to micro-B cable, but for the AGX Xavier and AGX Orin dev kits, you’ll need a USB-C cable (or a USB-C to type A cable, if your development host does not have USB-C ports). As NVIDIA mentions in their documentation, it’s important to use a good-quality cable for successful flashing.</p>
-</li>
-<li>
-<p>A free USB port on your development machine. The flashing tools work best if you can connect directly to a port on your system,
-rather than using a USB hub.</p>
-</li>
-<li>
-<p>For L4T R32.5.0 and later, you must have the <code>dtc</code> command in your PATH, since the NVIDIA tools use that command when preparing
-the boot files for some of the Jetsons. On Ubuntu systems, that command is provided by the <code>device-tree-compiler</code> package.</p>
-</li>
-<li>
-<p>For L4T R35 and later, you must have the GNU <code>cpp</code> command in your PATH (and <strong>not</strong> the LLVM/Clang <code>cpp</code>, see #1959).</p>
-</li>
-</ul>
-<p>While not required, a serial console connection is very useful, particularly with troubleshooting flashing problems, since
-the bootloaders only write messages to the serial console.</p>
-<p>Please note, also, that flashing typically does <strong>not</strong> work from a virtual machine. You should be running the flashing tools directly on a Linux host.</p>
-<h3 id="for-sdcard-based-development-kits"><a class="header" href="#for-sdcard-based-development-kits">For SDcard-based development kits</a></h3>
-<p>If you have a Jetson Nano or Jetson Xavier NX development kit, you’ll need a good-quality MicroSDHC/SDXC card, preferably
-16GB or larger. Higher-speed cards (at least UHS-I) are preferred, particularly if you plan to program the SDcard through
-an SDcard reader/writer on your development host. The reader/writer should be high-speed also, and connected through a
-high-speed I/O interface (e.g., USB 3.1).</p>
-<p>Programming an SDcard in a reader/writer attached to your host is also faster (<em>much</em> faster) if you have the <code>bmaptool</code>
-command in your PATH. On Ubuntu systems, that command is provided by the <code>bmap-tools</code> package. (But note that <code>bmaptool</code>
-requires <code>sudo</code>.)</p>
-<p>The Jetson AGX Xavier development kit also supports booting from a MicroSD card instead of the on-board eMMC, with some
-limitations.</p>
-<h3 id="avoiding-sudo"><a class="header" href="#avoiding-sudo">Avoiding sudo</a></h3>
-<p>You can avoid using <code>sudo</code> during the flashing/SDcard writing process (except for using <code>bmaptool</code>, as noted above)
-by adding yourself to suitable groups and installing a <code>udev</code> rules file to give yourself access to the Jetsons via
-USB. The following instructions are for Ubuntu; other distros may have other groups or require additional setup.</p>
-<ul>
-<li>For SDcard writing, add yourself to group <code>disk</code>.</li>
-<li>For USB flashing, add yourself to group <code>plugdev</code>,</li>
-</ul>
-<p>You can use <a href="https://github.com/OE4T/tegra-demo-distro/blob/master/layers/meta-tegrademo/scripts/setup-udev-rules">this script</a> to
-install the <code>udev</code> rules that grant the <code>plugdev</code> group write access to the Jetson devices when they are connected
-in recovery mode to your development host.</p>
-<p>Note that after changing your group membership and/or <code>udev</code> rules, you may need to reboot your development
-host for the changes to take effect. It’s worth this extra setup, though, to eliminate the need for root access.</p>
-<h2 id="building-a-tegraflash-package"><a class="header" href="#building-a-tegraflash-package">Building a tegraflash package</a></h2>
-<p>All of the Jetson machine configurations add a <code>tegraflash</code> image type by default, which generates a compressed tarball
-contains all of the files, tools, and scripts for flashing the device and/or creating a fully-populated SDcard. If you’ve
-successfully run a bitbake build of an image, you should see a file called</p>
-<pre><code>&lt;image-type&gt;-${MACHINE}.tegraflash.tar.gz
-</code></pre>
-<p>or, in more recent branches,</p>
-<pre><code>&lt;image-type&gt;-${MACHINE}.rootfs.tegraflash.tar.&lt;compression&gt;
-</code></pre>
-<p>in the directory <code>$BUILDDIR/tmp/deploy/images/${MACHINE}</code>. where <code>&lt;compression&gt;</code> could be either <code>gz</code> or <code>zst</code>, depending on the branch you are using (zstd replaced gzip as the default compression method in Feb 2025).</p>
-<h3 id="using-an-sdcard-with-the-jetson-agx-xavier"><a class="header" href="#using-an-sdcard-with-the-jetson-agx-xavier">Using an SDcard with the Jetson AGX Xavier</a></h3>
-<p>By default, the <code>tegraflash</code> package for the AGX Xavier is set up for flashing the on-board eMMC. If you want to
-boot your Xavier off an SDcard instead, you should add the following to your build configuration (e.g., in
-<code>$BUILDDIR/conf/local.conf</code>):</p>
-<pre><code>  TEGRA_ROOTFS_AND_KERNEL_ON_SDCARD = "1"
-  ROOTFSPART_SIZE = "15032385536"
-</code></pre>
-<p>The <code>ROOTFSPART_SIZE</code> setting is for a 16GB SDcard; adjust the size as needed for a larger or smaller card.</p>
-<p>With these settings in place, the resulting <code>tegraflash</code> package supports flashing the bootloader file to
-the on-board eMMC, moving the kernel, device tree, and rootfs on the SDcard. Note that this is <em>only</em> supported
-for the Jetson AGX Xavier, and that SDcard booting <em>does not</em> support the bootloader redundancy features.</p>
-<p>With this configuration, there will be two scripts in the <code>tegraflash</code> package: <code>dosdcard.sh</code> for writing the
-SDcard, and <code>doflash.sh</code> for flashing the bootloader partitions to the eMMC.  Run the <code>dosdcard.sh</code> script to
-format and write the SDcard on your development host, insert the SDcard into the slot on the AGX Xavier dev kit,
-then use the <code>doflash.sh</code> to flash the bootloader partitions. (Unlike for Xavier NX devices, you <em>must</em> perform
-these steps separately.)</p>
-<h2 id="unpacking-the-tegraflash-package"><a class="header" href="#unpacking-the-tegraflash-package">Unpacking the tegraflash package</a></h2>
-<p>To flash your Jetson, or create an SDcard image, create an empty directory and use the <code>tar</code> command to
-unpack the <code>tegraflash</code> package into it:</p>
-<pre><code>  $ mkdir ~/tegraflash
-  $ cd ~/tegraflash
-  $ tar -x -f $BUILDDIR/tmp/deploy/images/${MACHINE}/&lt;image-type&gt;-${MACHINE}.tegraflash.tar.gz
-</code></pre>
-<p>Be sure to use the <code>tar</code> command from a terminal window. Some users have reported issues with incorrect
-results when extracting files using GUI-based tools.</p>
-<h2 id="setting-up-for-flashing"><a class="header" href="#setting-up-for-flashing">Setting up for flashing</a></h2>
-<ol>
-<li>Start with your Jetson powered off. (NVIDIA recommends connecting hardware only while the device is powered off.)</li>
-<li>Connect the USB cable from your Jetson to your development host.</li>
-<li>Insert an SDcard into the slot on the module, if needed.</li>
-<li>Power on the Jetson and put it into recovery mode.</li>
-</ol>
-<p>For SDcard-based Jetsons (Nano and Xavier NX), you have the option of programming the SDcard contents
-either during USB flashing or separately using an SDcard reader/writer on your development host. If
-you program the SDcard separately, perform that step first and insert the already-programmed card
-into the slot on the module in step 3 above. (When using an SDcard with the AGX Xavier, you <em>must</em>
-pre-program the SDcard first.)</p>
-<p>To verify that the device is in recovery mode and that the USB cable is connected properly, use the
-following command:</p>
-<pre><code>  $ lsusb -d 0955:
-  Bus 001 Device 006: ID 0955:7c18 NVIDIA Corp. T186 [TX2 Tegra Parker] recovery mode
-</code></pre>
-<p>If you don’t see your Jetson listed, double-check the cable and try the recovery mode sequence
-again.</p>
-<h3 id="recovery-mode-jumpers-and-buttons"><a class="header" href="#recovery-mode-jumpers-and-buttons">Recovery mode jumpers and buttons</a></h3>
-<p>The different Jetson develpoment kits have different mechanisms for entering recovery mode.</p>
-<h4 id="jetson-tx1-and-tx2-development-kits"><a class="header" href="#jetson-tx1-and-tx2-development-kits">Jetson TX1 and TX2 development kits</a></h4>
-<p>Press <em>and hold</em> the REC (“recovery”) button, press and release the RST (“reset”) button. Continue
-to hold the REC button for 3-4 seconds, then release.
-[[images/TX1-TX2-Devkit-RecoveryMode-Button.jpg|alt=TX1-TX2 buttons]]</p>
-<h4 id="jetson-agx-xavier-development-kit"><a class="header" href="#jetson-agx-xavier-development-kit">Jetson AGX Xavier development kit</a></h4>
-<p>Press <em>and hold</em> the center button, and press and release the reset button (on the right).
-[[images/AGX-Xavier-RecoveryMode-Button.jpg|alt=AGX Xavier buttons]]</p>
-<h4 id="jetson-orin-development-kit"><a class="header" href="#jetson-orin-development-kit">Jetson Orin development kit</a></h4>
-<p>Press <em>and hold</em> the center button. Then plug in the power supply. Release the center button.  Note that it can take 10-15 seconds for the device to fully enter recovery mode and export its serial console after power up.</p>
-<h4 id="all-jetson-nano-xavier-nx-development-kits"><a class="header" href="#all-jetson-nano-xavier-nx-development-kits">All Jetson Nano, Xavier NX development kits</a></h4>
-<p>Connect a jumper between the 3rd and 4th pins from the right hand side of “button header”
-underneath the back of the module (FRC and GND; see the labeling on the underside of the
-carrier board). The module will power up in recovery mode automatically.
-[[images/Nano-NX-RecoveryMode-Jumper.jpg|alt=Nano-Xavier pins]]</p>
-<p>For the older Jetson Nano rev A02 carrier boards, the FRC pin is in the 8-pin header next to
-the module, beside the MIPI-CSI camera interface. The pins are labeled on the underside of
-the carrier board.
-<img src="https://user-images.githubusercontent.com/227565/112763078-4475dd80-8fc0-11eb-8670-a2d13f0c5083.png" alt="Nano A02 pins"></p>
-<h2 id="writing-an-sdcard"><a class="header" href="#writing-an-sdcard">Writing an SDcard</a></h2>
-<p>If you want to program the SDcard contents directly onto the card from your development host:</p>
-<ol>
-<li>Insert the card into the reader/writer on your host.</li>
-<li><em>Carefully</em> determine the device name for the card. <strong>Using the wrong device name could destroy your host’s filesystems.</strong></li>
-<li>Run the <code>dosdcard.sh</code> script to program the card.</li>
-</ol>
-<p>Here is an example, for a system where <code>/dev/sda</code> is the device name of the card:</p>
-<pre><code>$ ./dosdcard.sh /dev/sda
-</code></pre>
-<p>Remember to use <code>sudo</code>, if needed. The script will ask you to confirm before writing (which you can
-skip by adding <code>-y</code> to the command above).</p>
-<h3 id="creating-an-sdcard-image"><a class="header" href="#creating-an-sdcard-image">Creating an SDcard image</a></h3>
-<p>You can also create an SDcard image file that can later be written to one or more cards:</p>
-<pre><code>$ ./dosdcard.sh &lt;filename&gt;
-</code></pre>
-<p>The resulting file will be quite large, and writing the image can take a long time.</p>
-<h3 id="spi-flash-on-sdcard-based-kits"><a class="header" href="#spi-flash-on-sdcard-based-kits">SPI flash on SDcard-based kits</a></h3>
-<p>The SDcard-based development kits store some (in some cases, all) of the bootloader
-content on a SPI flash device on the Jetson module. You must ensure that the bootloader content
-in this flash device is compatible with the layout on the SDcard you create, since the
-early-stage boot data is programmed with the locations/sizes of SDcard-resident partitions,
-and cannot read the GPT partition table at runtime. To do this, you must perform a USB flash
-to program the SPI flash <strong>at least once</strong> on you development kit, by following the
-steps in the next section.</p>
-<p>Once the SPI flash has been programmed correctly, you should be able to update just
-by writing new SDcard images unless you make changes in your build that affect one
-of the boot-related partitions residing in the SPI flash, or change the flash layout
-XML in a way that alters the location/size of one of the SDcard-resident boot partitions
-(if there are any).</p>
-<h2 id="flashing-the-jetson"><a class="header" href="#flashing-the-jetson">Flashing the Jetson</a></h2>
-<p>Once everything is set up, use the <code>doflash.sh</code> script to program the Jetson:</p>
-<pre><code>$ ./doflash.sh
-</code></pre>
-<p>Remember to use <code>sudo</code> to invoke the script, if needed.  If successful, the Jetson will be rebooted
-into your just-built image automatically after flashing is complete.</p>
-<p>For SDcard-based development kits, you can program <em>just</em> the boot partitions in the SPI flash with:</p>
-<pre><code>$ ./doflash.sh --spi-only
-</code></pre>
-<p>You should insert your programmed SDcard in the slot on the Jetson before performing this step, so
-when the Jetson reboots after the flashing process completes, it will boot into your image.</p>
-<h2 id="automating-unpack-and-flash-steps"><a class="header" href="#automating-unpack-and-flash-steps">Automating Unpack and Flash Steps</a></h2>
-<p>You can use <a href="https://github.com/OE4T/tegra-demo-distro/blob/master/layers/meta-tegrademo/scripts/oe4t-tegraflash-deploy">this script</a> if desired to automate the steps associated with unpacking and running the <code>./doflash.sh</code> script for tegraflashing.</p>
-<h2 id="issues-during-flashing"><a class="header" href="#issues-during-flashing">Issues during flashing</a></h2>
-<p>If you run <code>sudo ./doflash.sh</code> and flashing is started but then it hang in some step like:</p>
-<pre><code>[   1.7586 ] Flashing the device
-[   1.7611 ] tegradevflash --pt flash.xml.bin --storageinfo storage_info.bin --create
-[   1.7636 ] Cboot version 00.01.0000
-[   1.7659 ] Writing partition GPT with gpt.bin
-[   1.7666 ] [................................................] 100%
-[   1.7707 ] Writing partition PT with flash.xml.bin
-[  15.9892 ] [................................................] 100%
-[  15.9937 ] Writing partition NVC with nvtboot.bin.encrypt
-[  16.2433 ] [................................................] 100%
-[  16.2569 ] Writing partition NVC_R with nvtboot.bin.encrypt
-[  26.2706 ] [................................................] 100%
-[  26.2877 ] Writing partition VER_b with jetson-nano-qspi-sd_bootblob_ver.txt
-[  36.3103 ] [................................................] 100%
-[  36.3202 ] Writing partition VER with jetson-nano-qspi-sd_bootblob_ver.txt
-[  36.5833 ] [................................................] 100%
-[  36.5927 ] Writing partition APP with test-image.ext4.img
-[  36.8548 ] [................................................] 100%
-</code></pre>
-<p>or if e.g following:</p>
-<pre><code>[   1.9394 ] 00000007: Written less bytes than expected
-[  21.7219 ] 
-Error: Return value 7
-Command tegradevflash --pt flash.xml.bin --storageinfo storage_info.bin --create
-</code></pre>
-<p>It’s good to connect serial console which in above case will print something like:</p>
-<pre><code>[0020.161] device_write_gpt: Erasing boot device spiflash0
-[0039.824] Erasing Storage Device
-[0039.827] Writing protective mbr
-[0039.833] Error in command_complete 18003 int_status
-[0039.840] Error in command_complete 18003 int_status
-[0039.847] Error in command_complete 18003 int_status
-[0039.852] sending the command failed 0xffffffec in sdmmc_send_command at 109
-[0039.859] switch command send failed 0xffffffec in sdmmc_send_switch_command at 470
-[0039.866] switch cmd send failed 0xffffffec in sdmmc_select_access_region at 1301
-[0039.876] Error in command_complete 18001 int_status
-[0039.883] Error in command_complete 18001 int_status
-[0039.890] Error in command_complete 18001 int_status
-[0039.895] sending the command failed 0xffffffec in sdmmc_send_command at 109
-[0039.902] setting block length failed 0xffffffec in sdmmc_block_io at 945
-[0039.909] block I/O failed 0xffffffec in sdmmc_io at 1215
-[0039.914] block write failed 0xffffffec in sdmmc_bdev_write_block at 178
-[0039.921] device_write_gpt: failed to write protective mbr
-[0039.926] Number of bytes written -20
-[0039.930] Written less bytes than expected with error 0x7
-[0039.935] Write command failed for GPT partition
-</code></pre>
-<p>Things to try:</p>
-<ul>
-<li>! USB cable must be plugged directly to PC host (don’t use USB hub otherwise issues like described above will appear) !</li>
-<li>verify USB cable quality (try to use another one)</li>
-<li>power off/on device and try flashing again</li>
-</ul>
-<h1 id="general-tegraflash-troubleshooting"><a class="header" href="#general-tegraflash-troubleshooting">General Tegraflash Troubleshooting</a></h1>
-<p>See <a href="#general-troubleshooting-tipssuggestions">Tegraflash-Troubleshooting</a></p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="linux-4x-kernel-notes"><a href="#linux-4x-kernel-notes" class="header">Linux 4.x kernel notes</a></h1>
+<h1 id="linux-4x-kernel-notes"><a href="#linux-4x-kernel-notes" class="header">Linux 4.x Kernel Notes</a></h1>
 <p>Starting with the 4.4 kernel, NVIDIA maintains separate repositories for some of their hardware-specific drivers and the device tree files.  To simplify kernel builds under OE-Core, the <code>linux-tegra</code> recipes for 4.4 and later point to a repository where the files in those separate repositories have been merged back together using git subtrees.</p>
 <p>This makes it more difficult to compare the sources used here against the NVIDIA upstream sources, but simplifies the recipe and the management any patches that might be needed.</p>
 <div style="break-before: page; page-break-before: always;"></div>
@@ -718,7 +831,7 @@ See <a href="https://github.com/NVIDIA/nvidia-docker/wiki/NVIDIA-Container-Runti
 <li>For containers that use GStreamer, be sure to include the Jetson-specific GStreamer plugins you may need.</li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="nvidia_devnet_mirror-and-sdk-manager"><a href="#nvidia_devnet_mirror-and-sdk-manager" class="header">NVIDIA_DEVNET_MIRROR and SDK Manager</a></h1>
+<h1 id="nvidia-devnet-mirror-and-sdk-manager"><a href="#nvidia-devnet-mirror-and-sdk-manager" class="header">NVIDIA DEVNET MIRROR and SDK Manager</a></h1>
 <p>Jetpack 4.3 content as well as <a href="https://github.com/OE4T/meta-tegra/pull/677">CUDA host tool support before this PR</a> was not anonymously downloadable from NVIDIA’s servers and requires an <code>NVIDIA_DEVNET_MIRROR</code> setup with the path to SDK manager downloads.</p>
 <p>Attempting to build recipes which require host tool CUDA support will faied with message:</p>
 <pre><code>ERROR: Nothing PROVIDES 'cuda-binaries-ubuntu1804-native'
@@ -729,12 +842,6 @@ cuda-binaries-ubuntu1804-native was skipped: Recipe requires NVIDIA_DEVNET_MIRRO
 </code></pre>
 <p>By default, the SDK Manager downloads to a directory called Downloads/nvidia/sdkm_downloads under your $HOME directory, so use that path in the above setting.</p>
 <p>See example in <a href="https://github.com/OE4T/tegra-demo-distro/blob/b034c9293c6a7cc5fcc11cf00e6df42c1600c20b/layers/meta-tegrademo/conf/template-tegrademo/local.conf.sample#L36">tegra-demo-distro</a> which demonstrates setting the path to the default download directory used by NVIDIA SDK manager.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="oe4t-contributor-guide"><a href="#oe4t-contributor-guide" class="header">OE4T Contributor Guide</a></h1>
-<p>See the <a href="https://github.com/OE4T/meta-tegra/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a> file for details.</p>
-<p>In addition to code and documentation contributions we greatly appreciate help in the form of testing.</p>
-<p>Please see the <a href="https://docs.google.com/spreadsheets/d/1EWG5QZvtWdk74gz48D4xCbegK-bsqMFJ8XOsyGdUUeI/edit#gid=1125662453">Release and Validation</a>
-sheet for a list of current test coverage and test cases.  Request edit on this sheet if you’d like to help contribute.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <p>There may be times when you need to perform the equivalent of a
 re-flashing of your Jetson-based device without being able to use
@@ -999,7 +1106,7 @@ to <a href="https://github.com/OE4T/tegra-demo-distro/tree/dunfell-l4t-r32.4.3">
 <p><strong>Note:</strong> some extension boards with SPI chips maybe will not work due to the level shifters which are assembled on 40 pin header.
 Please refer to <a href="https://developer.nvidia.com/embedded/downloads#?search=40-Pin%20Expansion%20Header%20GPIO%20Usage%20Considerations">40 pin header considerations</a> for more details.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<p>Jetson secure boot support in L4T R35.2.1 implements a different chain of trust from what was present in the <a href="#setting-fuses-for-secure-boot-2">L4T R32</a> releases:</p>
+<p>Jetson secure boot support in L4T R35.2.1 implements a different chain of trust from what was present in the <a href="#secure-boot-support">L4T R32</a> releases:</p>
 <ul>
 <li>The Trusty secure OS has been replaced by OP-TEE, which allows for dynamic loading of trusted applications (TAs) from the non-secure world. TAs must be signed, and the public key used for checking the signature is compiled into the OP-TEE OS.</li>
 <li>The cboot bootloader has been replaced by UEFI, which uses its own set of keys for validating signatures on binaries that it loads (Linux kernel, EFI applications, and EFI capsules).</li>
@@ -1080,7 +1187,7 @@ EXTRA_OEMAKE += "TA_SIGN_KEY=${WORKDIR}/optee-signing-key.pem"
 </ul>
 <p>Kernel encryption is not currently supported in meta-tegra, so do <em>not</em> provide the UEFI payload encryption key (using <code>-in_sym_key</code>).</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="setting-fuses-for-secure-boot-2"><a href="#setting-fuses-for-secure-boot-2" class="header">Setting fuses for secure boot</a></h1>
+<h1 id="secure-boot-support"><a href="#secure-boot-support" class="header">Secure Boot Support</a></h1>
 <p>Bootloader signing is supported for all Jetson targets for which secure boot is available (consult the L4T documentation). Support was added in the <code>zeus</code> branch for tegra186 (Jetson-TX2), and extended to the other SoC types in the <code>dunfell-l4t-r32.4.3</code> branch.</p>
 <p><strong>Note</strong> that with L4T R35.2.1 and later, the secure boot sequence has changed.  See <a href="#getting-started">this page</a> for more information.</p>
 <h2 id="setting-fuses-for-secure-boot-1"><a class="header" href="#setting-fuses-for-secure-boot-1">Setting fuses for secure boot</a></h2>
@@ -1113,7 +1220,7 @@ If you do not go through the extra steps of setting up a kernel encryption key, 
 <h2 id="using-a-code-signing-server"><a class="header" href="#using-a-code-signing-server">Using a code signing server</a></h2>
 <p>If you prefer not to have your signing/encryption keys local to your development host, you can override the <code>tegraflash_custom_sign_pkg</code> and <code>tegraflash_custom_sign_bup</code> functions in <code>image_types_tegra.bbclass</code> to package up the files in the current working directory, send them to be signed, then unpack the results back into the current directory. Everything needed to perform the signing, except for the keys, will be present in the package sent to the server. An example implementation of a code signing server is available <a href="https://github.com/madisongh/digsigserver">here</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="update-2020-09-17-1"><a href="#update-2020-09-17-1" class="header">Update 2020-09-17</a></h1>
+<h1 id="tegra-specific-gstreamer-plugins"><a href="#tegra-specific-gstreamer-plugins" class="header">Tegra Specific Gstreamer Plugins</a></h1>
 <p>Originally, the machine configurations set MACHINE_GSTREAMER_1_0_PLUGIN to include the <code>gstreamer1.0-plugins-tegra</code> package, which is the base set of binary-only gstreamer plugins that is provided with L4T.  In more recent releases, this has been changed to point to <code>gstreamer1.0-omx-tegra</code> instead (and using the now-current MACHINE_HWCODECS variable) to make it easier to build multimedia-ready images.</p>
 <p>Note that since the OpenMAX plugins package is flagged as commercially licensed, it is also whitelisted in the machine configuration with:</p>
 <pre><code>LICENSE_FLAGS_WHITELIST_append = " commercial_gstreamer1.0-omx-tegra"
@@ -1205,7 +1312,7 @@ the payload (similar to the <code>l4t_generate_soc_bup.sh</code> script in L4T):
 keys for signing the payload contents if your devices are fused for secure boot, and they
 will be passed through to each invocation of the flash helper script.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="prerequisites-3"><a href="#prerequisites-3" class="header">Prerequisites</a></h1>
+<h1 id="usb-device-mode-support"><a href="#usb-device-mode-support" class="header">USB Device Mode Support</a></h1>
 <p>On the <code>zeus</code> and later branches (for L4T R32.2.3 and later), the <code>l4t-usb-device-mode</code> recipe is available to set up USB gadgets on a Jetson device for network and serial TTY access. The setup is similar to what’s provided in the L4T/JetPack BSP, except:</p>
 <ul>
 <li>the scripts in the BSP under <code>/opt/nvidia/l4t-usb-device-mode</code> have been replaced by a combination of systemd, udev, and <code>libusbgx</code> configuration files;</li>
@@ -1213,7 +1320,7 @@ will be passed through to each invocation of the flash helper script.</p>
 <li>no mass storage gadget is created</li>
 </ul>
 <p>Note that as of this writing, support for creating both an ECM gadget and an RNDIS gadget is provided, but the RNDIS gadget has not been tested.</p>
-<h2 id="prerequisites-1"><a class="header" href="#prerequisites-1">Prerequisites</a></h2>
+<h2 id="prerequisites-2"><a class="header" href="#prerequisites-2">Prerequisites</a></h2>
 <ol>
 <li>You must have the <code>meta-oe</code> layer from <a href="https://git.openembedded.org/meta-openembedded/">meta-openembedded</a> in your build for the <code>libusbgx</code> recipe.</li>
 <li>You must use systemd, and include udev and networkd support in its configuration (both of which are on by default in OE-Core zeus).</li>
@@ -1225,7 +1332,7 @@ will be passed through to each invocation of the flash helper script.</p>
 <h2 id="using-device-mode-support"><a class="header" href="#using-device-mode-support">Using device mode support</a></h2>
 <p>To use device mode support, just include <code>l4t-usb-device-mode</code> in your image.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="building-cboot-from-sources-1"><a href="#building-cboot-from-sources-1" class="header">Building cboot from sources</a></h1>
+<h1 id="using-cboot-as-bootloader"><a href="#using-cboot-as-bootloader" class="header">Using cboot as Bootloader</a></h1>
 <p>[Applicable to L4T R32.1.0 and later]</p>
 <p>For Jetson AGX Xavier, NVIDIA provides only <strong>cboot</strong> as the bootloader, so there is no U-Boot recipe for that platform. For Jetson TX2, the default configuration uses both - cboot loads U-Boot, which then loads the Linux kernel. You can, however, use just cboot as the bootloader by setting</p>
 <pre><code>PREFERRED_PROVIDER_virtual/bootloader = "cboot-prebuilt"
@@ -1333,7 +1440,7 @@ oe4t,p3768-0000+p3767-0005+tegrademonvidia,p3768-0000+p3767-0005-supernvidia,p37
 <p>Only overlays which modify the kernel DTB are supported, since the overlay application happens late in the boot sequence.</p>
 <p>See <a href="#uboot_extlinux_fdtoverlays">this section</a> of the extlinux.conf wiki page for details about configuring <code>OVERLAYS</code> in extlinux.conf.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="configuring-your-builds-for-gcc-7-1"><a href="#configuring-your-builds-for-gcc-7-1" class="header">Configuring your builds for GCC 7</a></h1>
+<h1 id="using-gcc7-from-the-contrib-layer"><a href="#using-gcc7-from-the-contrib-layer" class="header">Using gcc7 from the Contrib Layer</a></h1>
 <p>Starting with the <code>warrior</code> branch, meta-tegra includes a <code>contrib</code> layer with user-contributed recipes
 for optional inclusion in your builds.  The layer includes recipes for gcc7 that you can use for compatibility
 with CUDA 10.0.</p>
@@ -1419,7 +1526,7 @@ CPPFLAGS_append_class-nativesdk = ""
 </code></pre>
 <p>Note that the <code>libxcrypt</code> recipe in OE-Core’s <code>warrior</code> branch was updated in September 2019 (for Yocto Project 2.7.2) to remove the compiler option that causes this error with older compilers.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="drmkms-support-1"><a href="#drmkms-support-1" class="header">DRM/KMS support</a></h1>
+<h1 id="wayland-weston-support-on-jetson-platforms"><a href="#wayland-weston-support-on-jetson-platforms" class="header">Wayland Weston Support on Jetson Platforms</a></h1>
 <p>Support for Wayland/Weston has been adapted from the open-source libraries and patches that NVIDIA has published, rather than using the binary-only libraries packaged into the L4T BSP.</p>
 <h2 id="drmkms-support"><a class="header" href="#drmkms-support">DRM/KMS support</a></h2>
 <p>Starting with L4T R32.2.x, DRM/KMS support in the BSP is provided through a combination of a custom
@@ -1507,7 +1614,7 @@ UBOOT_EXTLINUX_FDTOVERLAYS = "my-overlay.dtbo"
 with the kernel loaded from <code>/boot</code> in the rootfs instead from from a separate partition.
 This is only available in the <code>kirkstone-l4t-r32.7.x</code> branch (as of this writing).</p>
 <p><strong>Use with caution.</strong>  Not recommended for production use.</p>
-<h3 id="notes"><a class="header" href="#notes">Notes</a></h3>
+<h3 id="notes-1"><a class="header" href="#notes-1">Notes</a></h3>
 <p>The cboot bootloader on the Xavier (t194) platforms has support for loading the kernel, initial ramdisk,
 and device tree from files in the rootfs, rather than the <code>kernel</code> partition. The stock L4T BSP has
 supported this for several releases, installing the kernel image and initrd into <code>/boot</code> and
@@ -1553,118 +1660,11 @@ cboot’s ext4 implementation have been patched to make this work. Other filesys
 are unlikely to work.  Also, you should use the <code>cboot-t19x</code> recipe that builds
 cboot from source to get the required patches (this is the default).</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<p>Notes on extending support for flashing Jetson devices that boot from external storage media (NVMe, USB).</p>
-<p>Last update: 25 Jul 2025</p>
-<p>This is currently supported on branches based off JetPack 5/L4T R35 or later, and <code>kirkstone-l4t-r32.7.x</code>.  For R32.7.x, there is support for T210 (TX1/Nano) as well as T186 (TX2) and T194 (Xavier) targets.</p>
-<h1 id="prerequisites-2"><a class="header" href="#prerequisites-2">Prerequisites</a></h1>
-<p>Beyond the normal host tools required for building and normal flashing, you should also have these commands available on your build host:</p>
-<ul>
-<li><code>sgdisk</code> (from the <code>gdisk</code>/<code>gptfdisk</code> package)</li>
-<li><code>udisksctl</code> (part of the <code>udisks2</code> package)</li>
-</ul>
-<p>You should disable automatic mounting of removable media in your desktop settings. On recent Ubuntu (GNOME), go to Settings -&gt; Removable Media, and check the box next to “Never prompt or start programs on media insertion.”  You may also need to update the <code>/org/gnome/desktop/media-handling/automount</code> setting via <code>dconf</code>.  Check the setting with:</p>
-<pre><code>$ dconf read /org/gnome/desktop/media-handling/automount
-</code></pre>
-<p>If it reports <code>true</code>, set it with:</p>
-<pre><code>$ dconf write /org/gnome/desktop/media-handling/automount false
-</code></pre>
-<p>For Ubuntu 24.04, use <code>gsettings</code>, and also disable <code>automount-open</code>:</p>
-<pre><code>$ gsettings set org.gnome.desktop.media-handling automount false
-$ gsettings set org.gnome.desktop.media-handling automount-open false
-</code></pre>
-<p>If the <code>bmaptool</code> command is available, it will be used for writing to the storage device, which speeds up writes but (currently) requires root privileges (the scripts will automatically use <code>sudo</code> to invoke it when needed).</p>
-<p>No additional host changes should be required</p>
-<p>Your image needs to include a device-tree with <code>usb2-0</code> in <code>otg</code> mode - as <a href="https://github.com/OE4T/linux-tegra-4.9/blob/oe4t-patches-l4t-r32.7.4/nvidia/platform/t19x/jakku/kernel-dts/common/tegra194-p3668-common.dtsi#L127">here</a>.</p>
-<h2 id="avoiding-sudo-1"><a class="header" href="#avoiding-sudo-1">Avoiding Sudo</a></h2>
-<p>Note: <code>sudo</code> access will be needed when writing the disks using <code>bmap-tools</code>. This method below will avoid sudo while mounting/unmounting the flaskpkg and related block devices.</p>
-<p>For running the <code>initrd-flash</code> script without <code>sudo</code>, the host changes mentioned in the “Avoiding sudo” section on the <a href="#initrd-flashing">Flashing the Jetson Dev Kit</a> wiki page still apply.</p>
-<p>In addition, to avoid prompts for authentication at several points in the process you need to configure polkit appropriately.  On Ubuntu 22.04 this can be accomplished with the following script snippet run as sudo root:</p>
-<pre><code>cat &lt;&lt; EOF &gt; /var/lib/polkit-1/localauthority/50-local.d/com.github.oe4t.pkla
-[Allow Mounting for Disk Group]
-Identity=unix-group:disk
-Action=org.freedesktop.udisks2.filesystem-mount
-ResultAny=yes
-
-[Allow Power Off Drive for Disk Group]
-Identity=unix-group:disk
-Action=org.freedesktop.udisks2.power-off-drive
-ResultAny=yes
-EOF
-chmod 644 /var/lib/polkit-1/localauthority/50-local.d/com.github.oe4t.pkla
-systemctl restart polkit
-</code></pre>
-<h1 id="build-configuration"><a class="header" href="#build-configuration">Build configuration</a></h1>
-<p>No configuration is required if you just want to use initrd flashing and still keep your rootfs on the Jetson’s internal storage device. You only need to add a configuration setting if you want to configure your system to have its rootfs (<code>APP</code> partition) on an external storage device.  To do that, add a line to your <code>local.conf</code> such as:</p>
-<pre><code>TNSPEC_BOOTDEV:jetson-xavier-nx-devkit-emmc = "nvme0n1p1"
-</code></pre>
-<ul>
-<li>If trying this out with a different Jetson device, use the MACHINE name for the override in the above.</li>
-<li>If trying USB storage instead of NVMe, use <code>sda1</code> as the boot device, instead of <code>nvme0n1p1</code>.</li>
-</ul>
-<h1 id="flashing-after-build"><a class="header" href="#flashing-after-build">Flashing after build</a></h1>
-<ol>
-<li>Put the Jetson device into recovery mode and connect it to your host via the USB OTG port.</li>
-<li>Unpack the <code>tegraflash</code> tarball into an empty directory.</li>
-<li><code>cd</code> to that directory and run <code>./initrd-flash</code> to start the flashing process.</li>
-</ol>
-<p>The script:</p>
-<ol>
-<li>Uses the RCM boot feature to download a special <a href="https://github.com/OE4T/meta-tegra/blob/master/recipes-core/images/tegra-initrd-flash-initramfs.bb">initrd and kernel</a> that sets up the device as a USB mass storage gadget.</li>
-<li>Waits for the USB storage device to appear on the host, then copies in the bootloader files and a command sequence for the target that instructs it to start the boot device update, and tells it which storage device(s) should be exported to the host for writing.</li>
-<li>Uses the <code>make-sdcard</code> script to write to storage device(s).  This happens in parallel with the target’s programming of the boot device.</li>
-<li>Waits for the target to export another storage device to report its final status and the logs generated on the target. The script copies the device logs into a subdirectory.  When finished, it releases the storage device, and the target reboots automatically.</li>
-</ol>
-<p><strong>Note:</strong> add the current Linux user to the <code>disk</code> group to avoid the usage of <code>sudo</code> to run <code>initrd-flash</code> script.</p>
-<h1 id="re-flashing-just-the-rootfs-storage-device"><a class="header" href="#re-flashing-just-the-rootfs-storage-device">Re-flashing just the rootfs storage device</a></h1>
-<p>The <code>initrd-flash</code> script has a <code>--skip-bootloader</code> option for skipping the programming of the boot partitions, so you can re-flash just the rootfs storage device.  You should only use this option if you have already programmed the boot partitions once with the versions you’re using for your current build.</p>
-<h1 id="possible-future-enhancements"><a class="header" href="#possible-future-enhancements">Possible future enhancements</a></h1>
-<ul>
-<li>Develop the kernel/initrd used here into a more general “recovery” image, and/or applied for cross-version OTA updates, although the specific use cases will probably require something a bit different and need more customization.</li>
-<li>See if something could be done to automate setup when using LUKS encryption.  Direct formatting and partition writing from the host isn’t really an option there.  A hybrid approach (formatting and cryptsetup done on the device, then exporting the encrypted partitions via USB) should be workable.</li>
-</ul>
-<h1 id="how-it-works"><a class="header" href="#how-it-works">How it works</a></h1>
-<ul>
-<li>The helper scripts now support an <code>--external-device</code> option that passes appropriate options to <code>tegraflash.py</code> (needed since one of the BCTs appears to include information the external storage device for the boot chain to work), and an <code>--rcm-boot</code> option to allow direct download/execution of a kernel+initrd image.</li>
-<li>The SDcard-related support in the <code>nvflashxmlparse</code> and <code>make-sdcard</code> scripts was generalized to distinguish between the ‘boot’ device and any ‘rootfs’ device.</li>
-<li>The <code>tegra-flash-init</code> recipe was added to install a minimal init script for the flashing kernel, which sets up a USB mass storage gadget for the device to be flashed.  The serial number advertised by the gadget is the unique chip id (ECID) of the Tegra SoC.</li>
-<li>The <code>initrd-flash</code> script and the flashing kernel/initrd are added to the tegraflash package to drive the process.  The ECID (unique ID) of the SoC is extracted during initial RCM contact and used to locate the correct <code>/dev/sdX</code> device for the partition writing.</li>
-<li>A <code>find-jetson-usb</code> script has been added to wait for the appearance of the Jetson (in recovery mode) on the host USB bus.</li>
-<li>The tegraflash package generator in <code>image_types_tegra.bbclass</code> exports additional settings (e.g., the <code>TNSPEC_BOOTDEV</code> setting) in the file <code>.env.initrd-flash</code> for use by the <code>initrd-flash</code> script.</li>
-<li>The <code>tegra-bootfiles</code> recipe populates an external flash layout (XML) file in addition to the main (internal storage) flash layout file. The default layout from the L4T kit are modified, if required, to ensure that the boot and kernel partitions are present in the correct layout (with no duplicates) when <code>TNSPEC_BOOTDEV</code> set for using external storage.</li>
-</ul>
-<h1 id="notes-1"><a class="header" href="#notes-1">Notes</a></h1>
-<ul>
-<li>RCM booting on T194 platforms bypasses the UEFI bootloader, directly loading the kernel from nvtboot.  This means that the kernel/initrd does not have access to any EFI variables.  UEFI <em>is</em> used in the RCM boot chain on T234 platforms.</li>
-<li>On Xavier NX dev kits (SDcard-based), you must still have an SDcard installed in the slot even if you are booting off an external drive. The SDcard must <em>not</em> have an <code>esp</code> or <code>APP</code> partition on it.  You must manually reformat the SDcard, as the flashing process will not do that for you.  For all other Jetsons with internal eMMC storage, the eMMC <em>will</em> be erased as part of the flashing process (and re-partitioned/re-populated for those platforms that store some of the bootloader binaries in the eMMC).</li>
-<li>Based on readings of some NVIDIA dev forum posts, A/B updates in JetPack 5.0 do not work properly in all cases when booting off an external drive.  That is supposed to be fixed in JetPack 5.1.</li>
-<li>Depending on your device’s configuration (e.g., having multiple storage devices attached), you may need to manually configure the boot order in the UEFI bootloader by hitting <code>ESC</code> when UEFI starts, and then selecting <code>Boot Maintenance Manager</code>, then <code>Boot Options</code>, then <code>Change Boot Order</code>.  This is a limitation in JetPack 5.0 that is supposed to be fixed in JetPack 5.1.</li>
-<li>If you use a custom flash layout for your builds, note that there are some limitations on the composition of your flash layout file(s) due to how the bootloaders and the NVIDIA tools work. For example, you cannot use a SPI flash-only layout for internal storage, since the BUP payload generator expects to be able to create a payload containing the kernel/kernel DTB. The generator will fail during the build, since those partitions are not present in the SPI flash.  You also cannot use a single flash layout that includes only the boot partitions (in, for example, SPI flash on AGX Orin and Xavier NX) and the external storage device (<code>nvme</code>).  The tools that generate the MB1 BCT and/or MB2 BCT will error out because those bootloaders cannot access external storage. Hopefully NVIDIA will resolve these limitations in a future release.</li>
-</ul>
-<h1 id="comparison-with-stock-l4t-initrd-flashing"><a class="header" href="#comparison-with-stock-l4t-initrd-flashing">Comparison with stock L4T initrd flashing</a></h1>
-<ul>
-<li>OE builds are per-machine, so much of the additional scripting to handle different targets during the flashing process can be omitted.</li>
-<li>With OE builds, TNSPEC_BOOTDEV selection is performed at build time. Switching back and forth between external rootfs and internal storage should be done with different builds.</li>
-<li>Stock L4T provides its initrd in prebuilt form, which requires disassembling and reassembling the initrd in the flashing scripts.  With OE, we can build the flashing initrd directly.</li>
-<li>Stock L4T requires customizing the external drive’s flash layout to specify the exact size of the storage device, in sectors.  That’s not required with OE builds, which do not use NVIDIA’s flashing tools to partition the external drive.</li>
-<li>Stock L4T inserts udev rules on the host during flashing and does some network setup to talk to the device.  The process implemented for OE builds does not use any networking and does not require any udev rules changes during the flashing process.  You also don’t have to be root to perform initrd-based flashing for OE builds, if you have followed the instructions <a href="#avoiding-sudo">here</a>. (However, the <code>bmaptool copy</code> command used in the <code>make-sdcard</code> script does need root access for its setup, and the script will run it under <code>sudo</code> for you).</li>
-</ul>
-<h1 id="limitations-on-using-an-external-drive-for-the-rootfs"><a class="header" href="#limitations-on-using-an-external-drive-for-the-rootfs">Limitations on using an external drive for the rootfs</a></h1>
-<ul>
-<li>On Jetson TX2 devices, the bootloaders do not have support for loading the kernel from an external drive.  The kernel, initrd, and device tree must reside on the eMMC (along with some of the boot partitions).</li>
-<li>Other Jetsons that boot directly from the eMMC (TX1, Nano-eMMC, Xavier NX-eMMC, AGX Xavier) also need to have some of the boot partitions in the main part of the eMMC.</li>
-<li>With Jetsons running JetPack 5/L4T R35.1.0, you may need to manually interrupt the UEFI bootloader to adjust the boot order to favor the external drive.  Even then, UEFI may attempt a PXE (network) boot first.  (This appears to be fixed with JetPack 5.1/L4T R35.2.1.)</li>
-</ul>
-<h1 id="known-issues"><a class="header" href="#known-issues">Known issues</a></h1>
-<ul>
-<li>On an AGX Orin configured to use an external drive for the rootfs (NVMe), once it has been flashed using <code>initrd-flash</code>, the RCM boot of the <code>initrd-flash</code> kernel stops working; the NVMe-resident OS is booted instead.  This happens with the stock L4T initrd flashing tools also. To work around the problem, clear the partition table on the NVMe drive (e.g., using <code>sgdisk /dev/nvme0n1 --clear</code>) before resetting the Orin into recovery mode to start the re-flashing process.</li>
-<li>On T210 platforms (TX1/Nano), if you use the normal <code>doflash.sh</code> script, boot binaries will get overwritten (due to the way the NVIDIA flashing tools work), and that will cause an “FDT_ERR_BADMAGIC” error if you later try to run <code>initrd-flash</code>.  The error is minor, and probably won’t cause any real issues with the flashing/booting process.  To be safe, though, you should not mix normal and initrd-based flashing in the same tegraflash directory.</li>
-</ul>
-<h1 id="customizing-external-storage-size"><a class="header" href="#customizing-external-storage-size">Customizing External Storage Size</a></h1>
-<p>Beginning with Jetpack 5.1.2 (r35.4.1) (and <a href="https://github.com/OE4T/meta-tegra/commit/43e1bf6fb07650db1df1af575aa54cc0038481f2">this commit</a>), the <code>TEGRA_EXTERNAL_DEVICE_SECTORS</code> variable is used to customize the total size of device containing the root filesystem (as well as all other partitions in <code>PARTITION_LAYOUT_EXTERNAL</code>).  The default size of this variable assumes a device which is at least 64GB in size.</p>
-<p>You may increase your root filesystem size to a value of around 30GB, leaving space for two root filesystem partitions (to support A/B redundancy) and additional partitions by defining <code>ROOTFSPART_SIZE</code> to a 4K aligned value in bytes of ~30 GB using a setting like <code>ROOTFSPART_SIZE = "30032384000"</code> in your local.conf.</p>
-<p>If you have an external device larger than 64GB and would like to use this for a larger root filesystem, in addition to modifying <code>ROOTFSPART_SIZE</code> you will also need to adjust the <code>TEGRA_EXTERNAL_DEVICE_SECTORS</code> to specify a larger size in sectors.  For instance, to specify a ~60 GB rootfs on a 128 GB flash drive use <code>ROOTFSPART_SIZE = "60064768000"</code>and <code>TEGRA_EXTERNAL_DEVICE_SECTORS = "250000000"</code></p>
-<h1 id="general-tegraflash-troubleshooting-1"><a class="header" href="#general-tegraflash-troubleshooting-1">General Tegraflash Troubleshooting</a></h1>
-<p>See <a href="#general-troubleshooting-tipssuggestions">Tegraflash-Troubleshooting</a></p>
+<h1 id="oe4t-contributor-guide"><a href="#oe4t-contributor-guide" class="header">OE4T Contributor Guide</a></h1>
+<p>See the <a href="https://github.com/OE4T/meta-tegra/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a> file for details.</p>
+<p>In addition to code and documentation contributions we greatly appreciate help in the form of testing.</p>
+<p>Please see the <a href="https://docs.google.com/spreadsheets/d/1EWG5QZvtWdk74gz48D4xCbegK-bsqMFJ8XOsyGdUUeI/edit#gid=1125662453">Release and Validation</a>
+sheet for a list of current test coverage and test cases.  Request edit on this sheet if you’d like to help contribute.</p>
 
                     </main>
 
