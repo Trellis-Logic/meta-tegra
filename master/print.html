@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-babdbeab.js";
+            window.path_to_searchindex_js = "searchindex-801d5e43.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a6851fc2.js"></script>
@@ -230,7 +230,7 @@ patches to the maintainers.</p>
 here are for branches based off L4T R32.4.3 and later. (For earlier releases, click the revisions count, under the title, to go back to an
 earlier revision of the page.)</p>
 <h1 id="initrd-flashing"><a class="header" href="#initrd-flashing">Initrd Flashing</a></h1>
-<p>For branches based off L4T R35.1.0 and later (<code>master</code>, <code>kirkstone</code>, and <code>langdale</code>), and the <code>kirkstone-l4t-r32.7.x</code> branch, an alternative flashing process (called “initrd flashing”) is available, which supports flashing to a rootfs (<code>APP</code> partition) on an external storage device.  See <a href="https://github.com/OE4T/meta-tegra/wiki/initrd-flashing-support">this page</a> for more information.</p>
+<p>For branches based off L4T R35.1.0 and later (<code>master</code>, <code>kirkstone</code>, and <code>langdale</code>), and the <code>kirkstone-l4t-r32.7.x</code> branch, an alternative flashing process (called “initrd flashing”) is available, which supports flashing to a rootfs (<code>APP</code> partition) on an external storage device.  See <a href="initrd-flashing-support.html">this page</a> for more information.</p>
 <p>The table below helps outline the flashing mechanism(s) supported depending on target root filesystem storage for all recent branches (<code>kirkstone-l4t-r32.7.x</code> and later)</p>
 <div class="table-wrapper">
 <table>
@@ -238,10 +238,10 @@ earlier revision of the page.)</p>
 <tr><th>Target Rootfs Storage</th><th>Flashing method</th></tr>
 </thead>
 <tbody>
-<tr><td>on-board eMMC</td><td><code>doflash.sh</code> or <a href="https://github.com/OE4T/meta-tegra/wiki/initrd-flashing-support">initrd-flash</a></td></tr>
-<tr><td>SDCard</td><td><code>doflash.sh</code> or <a href="https://github.com/OE4T/meta-tegra/wiki/initrd-flashing-support">initrd-flash</a>. <code>dosdcard.sh</code> may be used for subsequent programming after initial bootloader programming with <code>doflash.sh</code> or <code>initrd-flash</code>.</td></tr>
-<tr><td>NVMe</td><td><a href="https://github.com/OE4T/meta-tegra/wiki/initrd-flashing-support">initrd-flash</a></td></tr>
-<tr><td>M.2 drive or SATA drive</td><td><a href="https://github.com/OE4T/meta-tegra/wiki/initrd-flashing-support">initrd-flash</a></td></tr>
+<tr><td>on-board eMMC</td><td><code>doflash.sh</code> or <a href="initrd-flashing-support.html">initrd-flash</a></td></tr>
+<tr><td>SDCard</td><td><code>doflash.sh</code> or <a href="initrd-flashing-support.html">initrd-flash</a>. <code>dosdcard.sh</code> may be used for subsequent programming after initial bootloader programming with <code>doflash.sh</code> or <code>initrd-flash</code>.</td></tr>
+<tr><td>NVMe</td><td><a href="initrd-flashing-support.html">initrd-flash</a></td></tr>
+<tr><td>M.2 drive or SATA drive</td><td><a href="initrd-flashing-support.html">initrd-flash</a></td></tr>
 </tbody>
 </table>
 </div>
@@ -461,7 +461,7 @@ Command tegradevflash --pt flash.xml.bin --storageinfo storage_info.bin --create
 <li>power off/on device and try flashing again</li>
 </ul>
 <h1 id="general-tegraflash-troubleshooting"><a class="header" href="#general-tegraflash-troubleshooting">General Tegraflash Troubleshooting</a></h1>
-<p>See https://github.com/OE4T/meta-tegra/wiki/Tegraflash-Troubleshooting</p>
+<p>See <a href="Tegraflash-Troubleshooting.html">Tegraflash-Troubleshooting</a></p>
 
                     </main>
 
