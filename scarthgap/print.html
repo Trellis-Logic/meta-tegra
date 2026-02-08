@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7c590dfa.js";
+            window.path_to_searchindex_js = "searchindex-da2bb085.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-a6851fc2.js"></script>
+        <script src="toc-fb00983b.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -225,11 +225,247 @@ described above, instead of sending e-mail to oe4t-questions@madison.systems.</p
 patches to the maintainers.</p>
 <p>Contributions are welcome!</p>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="instructions-for-r35"><a class="header" href="#instructions-for-r35">Instructions for r35</a></h1>
+<p>See https://github.com/OE4T/tegra-demo-distro/discussions/310#discussioncomment-10534547</p>
+<ol>
+<li>Grab the pinmux spreadsheet and configure the pins the way you need then generate the new files https://developer.nvidia.com/downloads/jetson-orin-nx-and-orin-nano-series-pinmux-config-template.</li>
+<li>This will give you three new dtsi files. You need to match up what these are with your machine and meld them to get the changes you need from the machine. The relevant recipe is <code>tegra-bootfiles</code></li>
+<li>Build in these recipes <code>libgpiod libgpiod-tools libgpiod-dev</code></li>
+<li>Back at the command line run <code>gpioinfo</code> and grep on your gpio you want. For my case I wanted <code>GGPIO3_PCC.00</code></li>
+<li>Take the controller name (0 or 1 for me) and the line and you should now be able to <code>gpioset -c 1 12=1</code> to set. where the c is the controller number and 12 is the line number.</li>
+</ol>
+<p>Good reference https://docs.nvidia.com/jetson/archives/r35.3.1/DeveloperGuide/text/HR/JetsonModuleAdaptationAndBringUp/JetsonOrinNxNanoSeries.html#generating-the-pinmux-dtsi-files</p>
+<h1 id="jetpack-4-instructions-for-controlling-the-pin-states-on-the-jetson-tx2-som"><a class="header" href="#jetpack-4-instructions-for-controlling-the-pin-states-on-the-jetson-tx2-som">Jetpack 4 instructions for Controlling the pin states on the Jetson TX2 SoM</a></h1>
+<p>There’s two ways:</p>
+<ul>
+<li>Through bootloader configuration.</li>
+<li>Through using the virtual /sys filesystem in userspace.</li>
+</ul>
+<h2 id="pin-settings-in-bootloader-configuration"><a class="header" href="#pin-settings-in-bootloader-configuration">Pin settings in bootloader configuration</a></h2>
+<h3 id="summary"><a class="header" href="#summary">Summary</a></h3>
+<p>You need to do the following:</p>
+<ol>
+<li>Download an Microsoft Excel sheet(!) containing some macros(!!) and the L4T (“Linux For Tegra”) package from Nvidias downloadcenter. Note: For this you need a Nvidia developer account.</li>
+<li>In the Excel sheet, select the desired pin configuration using cell dropdown menus. Use the embedded macro to write out some device tree files.</li>
+<li>Use a Python script which comes with L4T to convert the device tree files into something file the bootloader can understand.</li>
+<li>Embed the bootloader configuration in the Yocto source tree.</li>
+</ol>
+<h3 id="detailed-steps"><a class="header" href="#detailed-steps">Detailed steps</a></h3>
+<p>As an example, the following guide walks you through reconfiguring pin A9 from it’s default state (output GND) to input with weak pull-up.</p>
+<ol>
+<li>The MS Excel part:
+<ol>
+<li>Visit the <a href="https://developer.nvidia.com/embedded/downloads">Nvidia developer download center</a> and search for <code>Jetson TX2 Series Pinmux</code>. <a href="https://developer.nvidia.com/embedded/dlc/jetson-tx2-series-module-pinmux">Here’s a direct link for 1.08</a>. Download and run it with macros enabled.</li>
+<li>On the second sheet you’ll find the configuration for pin <code>A9</code> on (at the time of writing) line 246. Cells in columns <code>AR</code> and <code>AS</code> define it as output grounding the signal. Change these cells to <code>Input</code> and <code>Int PU</code>.</li>
+<li>At the very top of the sheet, click the button labeled <code>Generate DT file</code>. Some dialogues will pop up which asks for stuff and have an effect on the filename.</li>
+</ol>
+</li>
+<li>The Python part:
+<ol>
+<li>Go to the <a href="https://developer.nvidia.com/embedded/downloads">Nvidia developer download center</a> and search for <code>Jetson Linux Driver Package (L4T)</code>. Follow the link to the <code>L4T x.y.z Release Page</code>. (For example, <a href="https://developer.nvidia.com/embedded/linux-tegra-r32.4.3">here’s the one for R32.4.3</a>.) There, you should find a link labeled <code>L4T Driver Package (BSP)</code> leading to some tarball named similar to <code>Tegra186_Linux_Rx.y.z_aarch64.tbz2</code>. (Again, as an example <a href="https://developer.nvidia.com/embedded/L4T/r32_Release_v4.3/t186ref_release_aarch64/Tegra186_Linux_R32.4.3_aarch64.tbz2">here’s the one for R32.4.3</a>.). Uncompress it and change to <code>Linux_for_Tegra/kernel/pinmux/t186/</code> inside.</li>
+<li>Run the <code>pinmux-dts2cfg.py</code> in the following way:</li>
+</ol>
+<pre><code>python pinmux-dts2cfg.py \
+    --pinmux \
+    addr_info.txt \
+    gpio_addr_info.txt \
+    por_val.txt \
+    --mandatory_pinmux_file mandatory_pinmux.txt \
+    /path/to/your/excel-created/tegra18x-jetson-tx2-config-template-*-pinmux.dtsi \
+    /path/to/your/excel-created/tegra18x-jetson-tx2-config-template-*-gpio-*.dtsi \
+    1.0 \
+    &gt; /tmp/new.cfg
+</code></pre>
+If it throws errors, it might be <a href="https://forums.developer.nvidia.com/t/pinmux-dts2cfg-py-errors-with-default-pinmux/185782">related to this</a>.</li>
+<li>Add a patch in your distro layer reflecting the pin settings in your <code>/tmp/new.cfg</code> created above.</li>
+</ol>
+<h2 id="controllingreading-the-pin-state-from-userspace"><a class="header" href="#controllingreading-the-pin-state-from-userspace">Controlling/reading the pin state from userspace</a></h2>
+<p>You can control/read the pin value from the virtual /sys filesystem <a href="https://forums.developer.nvidia.com/t/how-to-configure-gpio-to-input-pullup-from-userspace/191759/5">but not the pull up/down state</a>.</p>
+<p>Software-wise, the GPIOs have other names than on the schematic. Nvidia doesn’t make it easy to go from schematic name (like <code>A9</code>) to the /sys name (like <code>gpio488</code>). The following user contributed posts explain it better than anything Nvidia has come up with so far:</p>
+<ul>
+<li>https://forums.developer.nvidia.com/t/gpio-doesnt-work/49203/14</li>
+<li>https://forums.developer.nvidia.com/t/gpio-doesnt-work/49203/2</li>
+<li><a href="https://forums.developer.nvidia.com/t/what-is-the-gpio-number-is-g8-and-f7-pin-at-tx2/82220/3">This post</a> contains the equations in the links above solved for all possible input values.</li>
+</ul>
+<p>Having found out the /sys name for your pin, you can take following snippets as an example:</p>
+<p>The following snippet sets the gpio to output-low.</p>
+<pre><code># GPIO488 is A9 on the SoM
+pin=488
+echo $pin &gt; /sys/class/gpio/export
+echo out  &gt; /sys/class/gpio/gpio$pin/direction
+echo 0    &gt; /sys/class/gpio/gpio$pin/value
+</code></pre>
+<p>The following snippet sets the pin to input and reads its logical state:</p>
+<pre><code># GPIO488 is A9 on the SoM
+pin=488
+echo $pin &gt; /sys/class/gpio/export
+echo in   &gt; /sys/class/gpio/gpio$pin/direction
+cat         /sys/class/gpio/gpio$pin/value
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>The <code>meta-tegra</code> layer includes MACHINE definitions for NVIDIA’s Jetson development kits. If you are developing a custom device using one of the Jetson modules with, for example, a custom carrier board, or you just want to modify the default boot-time configuration (pinmux, etc.) for an existing development kit as a separate MACHINE in your own metadata layer, you may need to supply a MACHINE-specific file for your builds.</p>
+<p><strong>IMPORTANT:</strong> For any custom carrier board/hardware design, make sure you consult the appropriate Platform Adaptation and Bring-Up Guide document available from the <a href="https://developer.nvidia.com/embedded/downloads">NVIDIA Developer Download site</a> to get all the details on how to customize the pinmux configuration and other low-level hardware configuration settings. <em>Failing to provide the correct settings could damage your device.</em></p>
+<p>Boot-time hardware configuration and boot flash programming is particularly complicated for Jetson modules, and varies substantially between models. Consult a recent version of the <a href="https://docs.nvidia.com/jetson/archives/l4t-archived/l4t-322/index.html">L4T Driver Package Documentation</a>, particularly the “BSP Customization” and “Bootloader” chapters, for background information.  As mentioned above, the Platform Adaptation documentation is also a good reference.</p>
+<p><strong>NOTE:</strong> Due to restrictions in the implementation of bootloader update payloads, the length of your custom MACHINE name should
+be 31 characters or less.</p>
+<h1 id="jetson-tx1"><a class="header" href="#jetson-tx1">Jetson-TX1</a></h1>
+<p>No additional build-time files are necessary for MACHINEs based on the Jetson-TX1 module. All customizations can be done in the device tree and/or U-Boot.  You’ll need to point your build at your customized kernel and/or U-Boot repository and set variables in the machine <code>.conf</code> file for your custom device.</p>
+<h1 id="jetson-nano"><a class="header" href="#jetson-nano">Jetson-Nano</a></h1>
+<p>In the <code>warrior</code> and <code>zeus</code> branches, the only MACHINE-specific build-time file for Jetson-Nano is the SDCard layout file used by <code>recipes-bsp/sdcard-layout/sdcard-layout_1.0.bb</code>.  If you modify the partition layout for the SDCard, you’ll need to supply a copy of the <code>sdcard-layout.in</code> file that matches the SDCard partitions you define in your customized version of the <code>flash_l4t_t210_spi_sd_p3448.xml</code> file from the L4T BSP.</p>
+<p>Starting with the <code>zeus-l4t-r32.3.1</code> branch, full support for all revisions and SKUs of the Jetson Nano module was added, and the SDcard layout file was eliminated.  To modify your partition layout, you need only provide a customized copy of the <code>flash_l4t_t210_spi_sd_p3448.xml</code> (for 0000 SKUs) or <code>flash_l4t_t210_emmc_p3448.xml</code> (for 0002 SKUs) file. Different module revisions (FABs) use different device tree files, so you may need to have multiple device tree source files to account for module variants in your custom device/carrier.</p>
+<h1 id="jetson-tx2-and-jetson-tx2i"><a class="header" href="#jetson-tx2-and-jetson-tx2i">Jetson-TX2 and Jetson-TX2i</a></h1>
+<p>For the Jetson-TX2 family, there are several boot-time configuration files that are machine-specific. Be sure to follow the Platform Adaptation Guide documentation carefully so all of the necessary customizations for the BPMP device tree and the MB1 <code>.cfg</code> files for the pinmux, PMIC, PMC, boot ROM, and other on-module hardware get created properly.  The basic steps are filling in the pinmux spreadsheet and generating the <code>dtsi</code> fragments, then converting those fragments to <code>cfg</code> files using the L4T <code>pinmux-dts2cfg.py</code> script.</p>
+<p>The <code>recipes-bsp/tegra-binaries/tegra-flashvars_&lt;bsp-version&gt;.bb</code> recipe installs a file called <code>flashvars</code> that identifies the boot-time configuration files that need to be processed by the <code>tegra186-flash-helper</code> script for feeding into NVIDIA’s flashing tools.  With older OE4T branches, you need to supply a customized copy of the <code>flashvars</code> file in your BSP layer.  With the latest branches, the <code>flashvars</code> file gets generated automatically from the variables listed in <code>TEGRA_FLASHVARS</code>.  Check the recipe in <code>meta-tegra</code> to confirm which method you need to follow.</p>
+<p>The files listed in your <code>flashvars</code> file must be installed into <code>${datadir}/tegraflash</code> in the build sysroot by another recipe.  The simplest method is to create an overlay for the <code>recipes-bsp/tegra-binaries/tegra-bootfiles</code> recipe, as it already extracts the files for the Jetson development kits from the L4T BSP package:</p>
+<pre><code># The fetch task is disabled on this recipe, but we need our files included in the task signature.
+CUSTOM_DTSI_DIR := "${THISDIR}/${BPN}"
+FILESEXTRAPATHS:prepend := "${CUSTOM_DTSI_DIR}:"
+
+SRC_URI:append:${machine} = "\
+    file://tegra19x-${machine}-padvoltage-default.cfg \
+    file://tegra19x-${machine}-pinmux.cfg \
+    "
+
+# As the fetch task is disabled for this recipe, we access the files directly out of the layer.
+do_install:append:${machine}() {
+    install -m 0644 ${CUSTOM_DTSI_DIR}/tegra19x-${machine}-padvoltage-default.cfg ${D}${datadir}/tegraflash/
+    install -m 0644 ${CUSTOM_DTSI_DIR}/tegra19x-${machine}-pinmux.cfg ${D}${datadir}/tegraflash/
+}
+</code></pre>
+<p>The specifics of the configuration files and variables required may vary from version to version of the L4T BSP, so be sure to review any changes when upgrading.</p>
+<h1 id="jetson-agx-xavier"><a class="header" href="#jetson-agx-xavier">Jetson AGX Xavier</a></h1>
+<p>Jetson AGX Xavier systems are similar to Jetson-TX2, but (as of this writing) have only two version-dependent boot-time files - the BPMP device tree and the PMIC configuration.  Consult the NVIDIA documentation for customization steps, and see the Jetson-TX2 section above for information on how to integrate your custom files into the build.</p>
+<p>Note that AGX Xavier targets handle UEFI variables differently than other platforms.  If you plan to use with Jetpack 5 branches, please read https://github.com/OE4T/meta-tegra/pull/1865 and note that you likely will want to define <code>TNSPEC_COMPAT_MACHINE</code>.</p>
+<h1 id="jetson-xavier-nx"><a class="header" href="#jetson-xavier-nx">Jetson Xavier NX</a></h1>
+<p>Jetson Xavier NX systems are similar to Jetson AGX Xavier, but (as of this writing) have no version-dependent
+boot-time files.  Consult the NVIDIA documentation for customization steps, and see the Jetson-TX2 section above
+for information on how to integrate your customized files into the build.</p>
+<h1 id="jetson-orin"><a class="header" href="#jetson-orin">Jetson Orin</a></h1>
+<p>This guide is based on Jetson Linux R35.4.1 so change bbappend names accordingly if you use a different release. Occurences of <code>${machine}</code> should be replaced by your machine name.</p>
+<h2 id="create-a-new-machine-config"><a class="header" href="#create-a-new-machine-config">Create a new machine config</a></h2>
+<p>Create a new Machine configuration at <code>conf/machine/${machine}.conf</code> in your layer.
+For guidance on what it should contain look at any of the machine configurations in <code>meta-tegra</code>.</p>
+<h2 id="create-a-new-flash-config"><a class="header" href="#create-a-new-flash-config">Create a new flash config</a></h2>
+<p>Create a new flash configuration <code>recipes-bsp/tegra-binaries/tegra-flashvars/${machine}/flashvars</code>. You can start by copying one of the <code>flashvars</code> files in <code>meta-tegra</code>.
+To use the newly created <code>flashvars</code> file create the following <code>recipes-bsp/tegra-binaries/tegra-flashvars_35.4.1.bbappend</code>:</p>
+<pre><code>FILESEXTRAPATHS:prepend := "${THISDIR}/${BPN}:"
+</code></pre>
+<h2 id="add-pinmux-dtsi-files"><a class="header" href="#add-pinmux-dtsi-files">Add pinmux dtsi files</a></h2>
+<p>Generate the pinmux dtsi files with the <a href="https://developer.nvidia.com/downloads/jetson-orin-nx-and-orin-nano-series-pinmux-config-template">Nvidia pinmux Excel sheet</a> (or <a href="https://developer.nvidia.com/embedded/secure/jetson/agx_orin/jetson_agx_orin_pinmux_config_template.xlsm">this one for Orin AGX</a>).
+Rename the resulting files to start with <code>tegra234-</code> (Otherwise <code>meta-tegra</code> has issues handling them.) and convert line endings to Unix using <code>dos2unix</code>. Copy the files to <code>recipes-bsp/tegra-binaries/tegra-flashvars</code>.</p>
+<p><strong>NOTE:</strong> If you manually rename your generated DTSI files, you may need to modify the <code>#include</code> statement on line 35 of your <code>-pinmux.dtsi</code> file, as it has the original filename for the <code>-gpio-default.dtsi</code> file hardcoded.</p>
+<p>Install the files with following <code>tegra-bootfiles_35.4.1.bbappend</code>:</p>
+<pre><code># Hack: The fetch task is disabled on this recipe, so the following is just for the task signature.
+FILESEXTRAPATHS:prepend := "${THISDIR}/${BPN}:"
+SRC_URI:append:${machine} = "\
+    file://tegra234-${machine}-gpio-default.dtsi \
+    file://tegra234-${machine}-padvoltage-default.dtsi \
+    file://tegra234-${machine}-pinmux.dtsi \
+"
+
+# Hack: As the fetch task is disabled for this recipe, we have to directly access the files."
+CUSTOM_DTSI_DIR := "${THISDIR}/${BPN}"
+do_install:append:${machine}() {
+    install -m 0644 ${CUSTOM_DTSI_DIR}/tegra234-${machine}-gpio-default.dtsi ${D}${datadir}/tegraflash/
+    install -m 0644 ${CUSTOM_DTSI_DIR}/tegra234-${machine}-padvoltage-default.dtsi ${D}${datadir}/tegraflash/
+    install -m 0644 ${CUSTOM_DTSI_DIR}/tegra234-${machine}-pinmux.dtsi ${D}${datadir}/tegraflash/
+}
+</code></pre>
+<p>(Don’t forget to replace <code>${machine}</code> with your machine name.)</p>
+<p>Then modify <code>flashvars</code> to use the files:</p>
+<ul>
+<li><code>PINMUX_CONFIG</code> should be set to your <code>tegra234-${machine}-pinmux.dtsi</code></li>
+<li><code>PMC_CONFIG</code> should be set to your <code>tegra234-${machine}-padvoltage-default.dtsi</code></li>
+</ul>
+<h2 id="optionally-disable-board-eeprom-usage"><a class="header" href="#optionally-disable-board-eeprom-usage">(Optionally) disable board EEPROM usage</a></h2>
+<p>As explained in the <em>Platform Adaptation and Bring-Up Guide</em> by Nvidia, you might want to disable the usage of the board EEPROM.
+For that create a copy of the file used in <code>flashvars</code> for <code>MB2BCT_CFG</code> and modify it according to the Nvidia guide.
+Include this new file in Yocto the same way as explained in <a href="#add-pinmux-dtsi-files">Add pinmux dtsi files</a> and update <code>MB2BCT_CFG</code> in <code>flashvars</code> with the new file name.</p>
+<h2 id="use-a-custom-device-tree"><a class="header" href="#use-a-custom-device-tree">Use a custom device tree</a></h2>
+<p>See <a href="#custom-device-tree">Custom Device Tree</a> and apply the described changes to your <code>${machine}.conf</code>.</p>
+<h1 id="customizing-the-kernel"><a class="header" href="#customizing-the-kernel">Customizing the kernel</a></h1>
+<p>For custom hardware, you’ll probably need to modify the kernel in at least one of the following ways:</p>
+<ul>
+<li>Custom kernel configuration</li>
+<li>Custom device tree</li>
+<li>Adding patches</li>
+</ul>
+<p>Starting with the L4T R32.3.1-based branches, you can use the <a href="https://www.yoctoproject.org/docs/3.1/kernel-dev/kernel-dev.html">Yocto Linux tools</a> to apply patches and configuration
+changes during the build, although it may be simpler to fork the <a href="https://github.com/madisongh/linux-tegra-4.9">linux-tegra-4.9 repository</a> to apply patches, and supply your own <code>defconfig</code> file for
+the kernel configuration.  Having your own fork of the kernel sources should also be easier for creating a custom device tree. (You should also set the KERNEL_DEVICETREE variable in your machine configuration file appropriately.)</p>
+<h1 id="custom-machine-definitions-for-existing-hardware"><a class="header" href="#custom-machine-definitions-for-existing-hardware">Custom MACHINE definitions for existing hardware</a></h1>
+<p>If you need to define an alternate MACHINE configuration for an NVIDIA Jetson development kit without altering the boot-time configuration files for hardware initialization, you can have your MACHINE reuse the existing files in <code>meta-tegra</code>. For example, let’s say you want to create <code>tegraflash</code> packages for the Jetson-TX2 development kit for both the default cboot-&gt;U-boot-&gt;Linux boot sequence as well as for booting directly from cboot to Linux, without U-Boot.  In your BSP or distro layer, you could add a machine configuration file called, for example, <code>conf/machine/jetson-tx2-cboot.conf</code> that looks like this:</p>
+<pre><code>MACHINEOVERRIDES = "jetson-tx2:${MACHINE}"
+require conf/machine/jetson-tx2.conf
+PACKAGE_EXTRA_ARCHS_append = " jetson-tx2"
+PREFERRED_PROVIDER_virtual/bootloader = "cboot-prebuilt"
+</code></pre>
+<p>This would override the bootloader settings in the default <code>jetson-tx2</code> configuration to use cboot instead of U-Boot, but otherwise reuse all of the MACHINE-specific packages, files, and settings for the <code>jetson-tx2</code> MACHINE in <code>meta-tegra</code>.</p>
+<p>For Jetson Xavier NX based machine types - <code>jetson-xavier-nx-devkit</code> and <code>jetson-xavier-nx-devkit-emmc</code>, the <code>conf/machine/custom-machine.conf</code> would look like this:</p>
+<pre><code>require conf/machine/jetson-xavier-nx-devkit-emmc.conf
+MACHINEOVERRIDES = "cuda:tegra:tegra194:xavier-nx:jetson-xavier-nx-devkit-emmc:${MACHINE}"
+PACKAGE_EXTRA_ARCHS_append = " jetson-xavier-nx-devkit-emmc"
+</code></pre>
+<h1 id="custom-device-tree"><a class="header" href="#custom-device-tree">Custom Device Tree</a></h1>
+<p>In many cases it is desirable to avoid forking or patching the kernel sources. The devicetree bbclass can be used to create a custom dtb. There’s an example in tegra-demo-distro documented at <a href="#example-out-of-tree-devicetree-in-tegra-demo-distro">Using-device-tree-overlays</a> which accomplishes this for recent branches.</p>
+<h1 id="custom-partitioning"><a class="header" href="#custom-partitioning">Custom Partitioning</a></h1>
+<p>See <a href="#selecting-redundant-root-filesystem-partition-layout">Redundant-Rootfs-A-B-Partition-Support</a> for suggestions regarding defining partition layout files for your MACHINE.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>This page describes one mechanism for enabling disk encryption on meta-tegra, using the notes from Islam Hussein in <a href="https://matrix.to/#/!qJMWWUfzttaurEBEqL:gitter.im/$nAwSFU_-nveUAnJ_ZwF7ftRX19UF0yRoHyvvkm_WPh8?via=gitter.im&amp;via=matrix.org&amp;via=3dvisionlabs.com">this thread</a> on matrix.</p>
+<p>The encryption happens as a post-process initiated manually after the build.</p>
+<h1 id="yocto-changes"><a class="header" href="#yocto-changes">Yocto changes</a></h1>
+<ol>
+<li>Modify your partition xml to set ‘encrypted’ to true on the corresponding partition, as described in the <a href="https://docs.nvidia.com/jetson/archives/r36.4/DeveloperGuide/SD/Security/DiskEncryption.html">NVIDIA Disk Encryption Documentation</a>.</li>
+</ol>
+<pre><code>&lt;partition name="data-partition" type="data" encrypted="true"&gt;
+</code></pre>
+<ol start="2">
+<li>Choose a different init script to be used in initramfs which uses <code>luks-srv-app</code> and disable it totally after that to prevent further use. See code snippet below.  For the “context”, refer to the build changes section below.</li>
+</ol>
+<pre><code>__l4t_enc_root_dm="l4t_enc_root";
+__l4t_enc_root_dm_dev="/dev/mapper/${__l4t_enc_root_dm}"
+eval nvluks-srv-app -g -c "&lt;context&gt;" | cryptsetup luksOpen /dev/nvme0n1p${current_rootfs} ${__l4t_enc_root_dm}
+</code></pre>
+<h1 id="build-changes"><a class="header" href="#build-changes">Build changes</a></h1>
+<p>Add a bash script to be called manually after finishing yocto build. The script will go to the path of the build, extract it in a temp directory. mount the rootfs and open it. Then it will make a luks-storage (And that’s why I couldn’t build it inside yocto) The problem is that when you want to open the luks using crypto you have to access device mapper which requires privileged access which yocto doesn’t have</p>
+<ul>
+<li>Store the size of rootfs which is written in xml it have to be the same and then create luks drive with the same size.</li>
+<li>To generate the password you’ll need to run <code>gen_ekb.py</code></li>
+<li>You’ll have to to write down dummy uuid which is the context used in the code snippet above. (context will be used in two places generating pass to encrypt rootfs and generating the pass access it.)</li>
+<li>One way is to use a generic password which doesn’t need ecid. So the same key will be used for all of my devices.</li>
+</ul>
+<pre><code>GEN_LUKS_PASS_CMD="tools/gen_luks_passphrase.py"
+genpass_opt=""
+genpass_opt+=" -k tools/ekb.key "
+genpass_opt+=" -g "
+genpass_opt+=" -c '${__rootfsuuid}' "
+
+GEN_LUKS_PASS_CMD+=" ${genpass_opt}"
+
+truncate --size ${__rootfs_size} ${__rootfs_name}
+eval ${GEN_LUKS_PASS_CMD} | sudo cryptsetup \
+       --type luks2 \
+       -c aes-xts-plain64 \
+       -s 256 \
+       --uuid "${__rootfsuuid}" \
+       luksFormat \
+       ${__rootfs_name}
+eval ${GEN_LUKS_PASS_CMD} | sudo cryptsetup luksOpen ${__rootfs_name} ${__l4t_enc}
+sudo mkfs.ext4 /dev/mapper/${__l4t_enc}
+sudo mount /dev/mapper/${__l4t_enc} ${__enc_rootfs_mountpoint}
+sudo mount  ${__original_rootfs} ${__rootfs_original_mountpoint}
+sudo tar -cf - -C ${__rootfs_original_mountpoint} . | sudo tar -xpf - -C ${__enc_rootfs_mountpoint}
+sleep 5
+sudo umount ${__enc_rootfs_mountpoint}
+sudo cryptsetup luksClose ${__l4t_enc}
+sudo umount ${__rootfs_original_mountpoint}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
 <p>This total-beginner’s guide will walk you through the process of flashing a newly-generated image your Jetson development kit! The instructions
 here are for branches based off L4T R32.4.3 and later. (For earlier releases, click the revisions count, under the title, to go back to an
 earlier revision of the page.)</p>
 <h1 id="initrd-flashing"><a class="header" href="#initrd-flashing">Initrd Flashing</a></h1>
-<p>For branches based off L4T R35.1.0 and later (<code>master</code>, <code>kirkstone</code>, and <code>langdale</code>), and the <code>kirkstone-l4t-r32.7.x</code> branch, an alternative flashing process (called “initrd flashing”) is available, which supports flashing to a rootfs (<code>APP</code> partition) on an external storage device.  See <a href="initrd-flashing-support.html">this page</a> for more information.</p>
+<p>For branches based off L4T R35.1.0 and later (<code>master</code>, <code>kirkstone</code>, and <code>langdale</code>), and the <code>kirkstone-l4t-r32.7.x</code> branch, an alternative flashing process (called “initrd flashing”) is available, which supports flashing to a rootfs (<code>APP</code> partition) on an external storage device.  See <a href="#prerequisites-2">this page</a> for more information.</p>
 <p>The table below helps outline the flashing mechanism(s) supported depending on target root filesystem storage for all recent branches (<code>kirkstone-l4t-r32.7.x</code> and later)</p>
 <div class="table-wrapper">
 <table>
@@ -237,10 +473,10 @@ earlier revision of the page.)</p>
 <tr><th>Target Rootfs Storage</th><th>Flashing method</th></tr>
 </thead>
 <tbody>
-<tr><td>on-board eMMC</td><td><code>doflash.sh</code> or <a href="initrd-flashing-support.html">initrd-flash</a></td></tr>
-<tr><td>SDCard</td><td><code>doflash.sh</code> or <a href="initrd-flashing-support.html">initrd-flash</a>. <code>dosdcard.sh</code> may be used for subsequent programming after initial bootloader programming with <code>doflash.sh</code> or <code>initrd-flash</code>.</td></tr>
-<tr><td>NVMe</td><td><a href="initrd-flashing-support.html">initrd-flash</a></td></tr>
-<tr><td>M.2 drive or SATA drive</td><td><a href="initrd-flashing-support.html">initrd-flash</a></td></tr>
+<tr><td>on-board eMMC</td><td><code>doflash.sh</code> or <a href="#prerequisites-2">initrd-flash</a></td></tr>
+<tr><td>SDCard</td><td><code>doflash.sh</code> or <a href="#prerequisites-2">initrd-flash</a>. <code>dosdcard.sh</code> may be used for subsequent programming after initial bootloader programming with <code>doflash.sh</code> or <code>initrd-flash</code>.</td></tr>
+<tr><td>NVMe</td><td><a href="#prerequisites-2">initrd-flash</a></td></tr>
+<tr><td>M.2 drive or SATA drive</td><td><a href="#prerequisites-2">initrd-flash</a></td></tr>
 </tbody>
 </table>
 </div>
@@ -460,7 +696,974 @@ Command tegradevflash --pt flash.xml.bin --storageinfo storage_info.bin --create
 <li>power off/on device and try flashing again</li>
 </ul>
 <h1 id="general-tegraflash-troubleshooting"><a class="header" href="#general-tegraflash-troubleshooting">General Tegraflash Troubleshooting</a></h1>
-<p>See <a href="Tegraflash-Troubleshooting.html">Tegraflash-Troubleshooting</a></p>
+<p>See <a href="#general-troubleshooting-tipssuggestions">Tegraflash-Troubleshooting</a></p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="linux-4x-kernel-notes"><a href="#linux-4x-kernel-notes" class="header">Linux 4.x kernel notes</a></h1>
+<p>Starting with the 4.4 kernel, NVIDIA maintains separate repositories for some of their hardware-specific drivers and the device tree files.  To simplify kernel builds under OE-Core, the <code>linux-tegra</code> recipes for 4.4 and later point to a repository where the files in those separate repositories have been merged back together using git subtrees.</p>
+<p>This makes it more difficult to compare the sources used here against the NVIDIA upstream sources, but simplifies the recipe and the management any patches that might be needed.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>Notes on integration of the Jetson-customized NVIDIA container runtime (beta version 0.9.0) with Docker support.
+See <a href="https://github.com/NVIDIA/nvidia-docker/wiki/NVIDIA-Container-Runtime-on-Jetson">this page</a> for information on how this is integrated with the JetPack SDK.</p>
+<h1 id="supported-branches"><a class="header" href="#supported-branches">Supported branches</a></h1>
+<p>Support for the container runtime is available on the <code>zeus-l4t-r32.3.1</code> and later branches.</p>
+<h1 id="layers-required"><a class="header" href="#layers-required">Layers required</a></h1>
+<p>In addition to the OE-Core and meta-tegra layers, you will need the  <a href="https://git.yoctoproject.org/cgit/cgit.cgi/meta-virtualization/">meta-virtualization</a> layer and the <code>meta-oe</code>, <code>meta-networking</code>, and <code>meta-python</code> layers from the <a href="https://git.openembedded.org/meta-openembedded/">meta-openembedded</a> repository.</p>
+<h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>Add <code>virtualization</code> to your DISTRO_FEATURES setting.</p>
+<h1 id="building"><a class="header" href="#building">Building</a></h1>
+<ol>
+<li>To run any containers, add <code>nvidia-docker</code> to your image.</li>
+<li>The <a href="https://ngc.nvidia.com/catalog/containers?orderBy=modifiedDESC&amp;pageNumber=0&amp;query=jetson&amp;quickFilter=containers&amp;filters=">Docker containers that NVIDIA supplies</a> do not bundle in most of the hardware-specific libraries needed to run them, but expect them to be provided by the underlying host OS, so be sure to include TensorRT (<a href="L4T-R32.3.1-Notes.html#tensorrt-packaging-change">note</a>), CuDNN, and/or VisionWorks, if you expect to be running containers needing those packages.</li>
+<li>For containers that use GStreamer, be sure to include the Jetson-specific GStreamer plugins you may need.</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="nvidia_devnet_mirror-and-sdk-manager"><a href="#nvidia_devnet_mirror-and-sdk-manager" class="header">NVIDIA_DEVNET_MIRROR and SDK Manager</a></h1>
+<p>Jetpack 4.3 content as well as <a href="https://github.com/OE4T/meta-tegra/pull/677">CUDA host tool support before this PR</a> was not anonymously downloadable from NVIDIA’s servers and requires an <code>NVIDIA_DEVNET_MIRROR</code> setup with the path to SDK manager downloads.</p>
+<p>Attempting to build recipes which require host tool CUDA support will faied with message:</p>
+<pre><code>ERROR: Nothing PROVIDES 'cuda-binaries-ubuntu1804-native'
+cuda-binaries-ubuntu1804-native was skipped: Recipe requires NVIDIA_DEVNET_MIRROR setup
+</code></pre>
+<p>To resolve, you must use the NVIDIA SDK manager to download the cotent to your build host, then add this setting to your build configuration (e.g., in conf/local.conf under your build directory):</p>
+<pre><code>NVIDIA_DEVNET_MIRROR = "file://path/to/downloads"
+</code></pre>
+<p>By default, the SDK Manager downloads to a directory called Downloads/nvidia/sdkm_downloads under your $HOME directory, so use that path in the above setting.</p>
+<p>See example in <a href="https://github.com/OE4T/tegra-demo-distro/blob/b034c9293c6a7cc5fcc11cf00e6df42c1600c20b/layers/meta-tegrademo/conf/template-tegrademo/local.conf.sample#L36">tegra-demo-distro</a> which demonstrates setting the path to the default download directory used by NVIDIA SDK manager.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="oe4t-contributor-guide"><a href="#oe4t-contributor-guide" class="header">OE4T Contributor Guide</a></h1>
+<p>See the <a href="https://github.com/OE4T/meta-tegra/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a> file for details.</p>
+<p>In addition to code and documentation contributions we greatly appreciate help in the form of testing.</p>
+<p>Please see the <a href="https://docs.google.com/spreadsheets/d/1EWG5QZvtWdk74gz48D4xCbegK-bsqMFJ8XOsyGdUUeI/edit#gid=1125662453">Release and Validation</a>
+sheet for a list of current test coverage and test cases.  Request edit on this sheet if you’d like to help contribute.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>There may be times when you need to perform the equivalent of a
+re-flashing of your Jetson-based device without being able to use
+the normal flashing process via USB. This is possible, although
+there are some risks, and it requires careful setup and testing.</p>
+<p>Possible applications:</p>
+<ul>
+<li>
+<p>You need to alter the layout of the partitions in the Jetson’s
+eMMC storage.</p>
+</li>
+<li>
+<p>You need to update a Jetson running software based off an older
+version of the L4T BSP to a newer version that requires a modified
+layout of the eMMC and/or SPI flash (for Jetsons that have a
+SPI flash boot device).</p>
+</li>
+<li>
+<p>You just need the equivalent of a full “factory reset” that
+restores the device to a pristine state.</p>
+</li>
+</ul>
+<p>This page walks through a basic example of how to do this, using
+tools and scripts that you can modify/adapt as needed. The example
+uses a Jetson-TX2 development kit target; it has also been tested
+with Xavier and Nano development kits.</p>
+<h1 id="overview-of-the-process"><a class="header" href="#overview-of-the-process">Overview of the process</a></h1>
+<p>The goal here is to perform the equivalent of a USB “tegraflash”
+on the running device. What that entails is: erasing/reformatting
+the storage devices on the Jetson module and writing the correct
+boot code/data, kernel, rootfs, etc. so that on reboot, the
+device successfully boots into the image.</p>
+<p>To do this under Linux, we can’t be running in a rootfs that is
+mounted in the on-module storage. If your device supports external
+storage that is bootable, you could use that, or you could run
+the process entirely from an initial RAM disk loaded with the
+Linux kernel. The following example uses the latter approach.</p>
+<h1 id="ingredients"><a class="header" href="#ingredients">Ingredients</a></h1>
+<ul>
+<li>The <a href="https://github.com/madisongh/tegra-sysinstall">tegra-sysinstall</a> repo contains
+the scripts that execute the overall process.</li>
+<li>The <a href="https://github.com/OE4T/tegra-boot-tools">tegra-boot-tools</a> repo contains the
+tools for writing the boot partitions.</li>
+<li>Example recipes for creating the initramfs image for the TX2 running an old
+L4T R32.1-based build are <a href="https://github.com/madisongh/test-distro/tree/warrior/layers/meta-testdistro/recipes-upgrader">here</a>.</li>
+<li>The new image, based on L4T R32.5.0, is built from <a href="https://github.com/madisongh/tegra-test-distro/tree/dunfell-l4t-r32.5.0">this test distro</a>.</li>
+</ul>
+<h2 id="key-considerations"><a class="header" href="#key-considerations">Key considerations</a></h2>
+<ul>
+<li>
+<p>The <a href="https://github.com/madisongh/tegra-test-distro/blob/dunfell-l4t-r32.5.0/layers/meta-testdistro/recipes-bsp/tegra-binaries/custom-flash-layout/flash_jetson-tx2-devkit_custom.xml">flash layout</a> from the new image build is used to generate configuration files that the
+tools use for correctly re-partitioning the storage devices.  To ensure that the bootloaders and Linux agree on the eMMC partition layout, the primary GPT must be at least 16,896 bytes (33 512-byte sectors). (This is the case with the stock flash layouts for all recent releases of L4T.)</p>
+</li>
+<li>
+<p>The <code>partition_table</code> file generated by the <a href="https://github.com/madisongh/tegra-test-distro/blob/dunfell-l4t-r32.5.0/layers/meta-testdistro/recipes-devtools/tegra-tools/sysinstall-partition-layout_1.0.bb">sysinstall-partition-layout</a> recipe from the R32.5.0-based build
+must be copied into the <a href="https://github.com/madisongh/test-distro/blob/warrior/layers/meta-testdistro/recipes-upgrader/tools/sysinstall-partition-layout/jetson-tx2/partition_table">metadata for the warrior/R32.1-based build</a>, since that file will be part of the warrior-based initramfs.</p>
+</li>
+<li>
+<p>The <code>tegra-bootloader-update</code> tool uses a BUP payload as the source of the
+contents for all of the boot partitions. The stock L4T BUP payload generator does
+<strong>not</strong> include all of the boot partition contents.  <a href="https://github.com/OE4T/meta-tegra/commit/3e9d2bcedc812ff77a4e93da9cc4b05e1877591c">Recent commits into meta-tegra</a>
+include patches for the generator to include the missing pieces for TX2 and Xavier
+platforms. <strong>Update 10 Jun 2021:</strong> The additions to the BUP payload turned out to be
+incompatible with the stock L4T <code>nv_upgrade_engine</code> bootloader update program on the
+TX2 and were reworked <a href="https://github.com/OE4T/meta-tegra/commit/ab3f5bc5b178762245469dbc90ba9312bc06f369">here</a>
+to create an alternate payload that contains the full complement of boot partitions
+for TX2-based platforms.</p>
+</li>
+<li>
+<p>The <code>tegra-sysinstall</code> script expects the new rootfs image to be in tarball form,
+and does not perform any authentication or sanity checking on the image, so it is
+only usable for development purposes and should not be used in production.</p>
+</li>
+</ul>
+<h1 id="build-process"><a class="header" href="#build-process">Build process</a></h1>
+<ul>
+<li>
+<p>The R32.5.0-based build includes <code>tegra-bup-payload</code>, which installs a BUP payload in
+<code>/opt/ota_package</code> and pulls in the bootloader update tool. The <code>demo-image-egl</code> image was
+used for this example.  Note that it has <code>IMAGE_FSTYPES</code> set to include building a <code>tar.gz</code>
+tarball for the rootfs.</p>
+</li>
+<li>
+<p>The <a href="https://github.com/madisongh/test-distro/blob/warrior/layers/meta-testdistro/recipes-upgrader/images/sysinstall-upgrader-initramfs.bb">sysinstall-upgrader-initramfs</a> recipe
+in the warrior/R32.1-based tree builds a BUP payload containing the kernel and initrd suitable for installing with <code>nv_update_engine</code> on a system running an R32.1-based image. (Note that for platforms using U-Boot, installing the initrd would require a different process.)</p>
+</li>
+<li>
+<p>The <code>core-image-base</code> image from the warrior/R32.1 tree was used as the starting point for the example.</p>
+</li>
+</ul>
+<h1 id="process-steps"><a class="header" href="#process-steps">Process steps</a></h1>
+<ol>
+<li>
+<p>Start by flashing the R32.5.0-based image directly on the TX2. Use <code>sgdisk /dev/mmcblk0 --print</code> to display the partition table, and save that output so you can compare the results against the partition table created later during the installation process.</p>
+</li>
+<li>
+<p>Boot the <code>core-image-base</code> image from the warrior/R32.1-based distro on the TX2.</p>
+</li>
+<li>
+<p>Because the filesystem size is not expanded out to the full APP partition size in this build,
+use <code>mkfs.ext4</code> to format the UDA partition, and mount that at <code>/mnt</code>.</p>
+</li>
+<li>
+<p><code>rmdir /opt/ota_package</code>, then <code>ln -sn /mnt /opt/ota_package</code> to provide space
+for the BUP payload.</p>
+</li>
+<li>
+<p>Use <code>wget</code> to download the <code>sysinstall-upgrader-initramfs-jetson-tx2.bup-payload</code> built
+in the warrior/R32.1-based build tree as <code>/opt/ota_package/bl_update_payload</code>.</p>
+</li>
+<li>
+<p>Use <code>nv_update_engine --enable-ab</code>, then <code>nv_update_engine --install no-reboot</code> to
+install the BUP payload. If successful, <code>reboot</code>.</p>
+</li>
+<li>
+<p>The kernel command line in the initramfs image doesn’t have <code>console=</code> set, so be patient while
+the image loads (takes about a minute or so) - there is no kernel output during the boot.</p>
+</li>
+<li>
+<p><code>mkdir /var/extra</code>, as this directory is needed as a mount point during the installation.</p>
+</li>
+<li>
+<p><code>mkdir /installer</code> and use <code>wget</code> or <code>curl</code> to download the <code>demo-image-egl-jetson-tx2-devkit.tar.gz</code>
+tarball from the R32.5.0-based build, naming it <code>/installer/image.tar.gz</code>.</p>
+</li>
+<li>
+<p><code>tegra-sysinstall</code> to start the installation process. After it reformats the eMMC, the script will display the new partition table. Verify that the partition start and end sectors match the ones displayed in step 1 (after flashing the R32.5.0 image directly). If there is a mismatch, the device will probably not boot properly.</p>
+</li>
+</ol>
+<p>This section could be customized for a specific delivery mechanism.  For instance,
+instead of using wget to download the BUP payload, the package could be delivered through
+your preferred update mechanism.  If using an A/B update scheme like the one used for
+<code>tegrademo-mender</code> it should be possible to use the filesystem in the new boot partition
+to host the BUP payload and image content.</p>
+<h2 id="installation-steps"><a class="header" href="#installation-steps">Installation steps</a></h2>
+<p>These are the steps performed by <code>tegra-sysinstall</code>:</p>
+<ol>
+<li>
+<p>The <code>sgdisk</code> command (from the <code>gptfdisk</code> package) is used to zap the GPT partition
+table and create all of the partitions on the eMMC, based on the configuration file
+at <code>/usr/share/tegra-sysinstall/partition_table</code>.</p>
+</li>
+<li>
+<p>The APP, APP_b, DATA, LOGS, and EXTRA partitions are formatted using <code>mkfs.ext4</code>.</p>
+</li>
+<li>
+<p>The EXTRA partition is mounted at <code>/var/extra</code> for use as temporary storage.</p>
+</li>
+<li>
+<p>The rootfs tarball is unpacked into the APP partition, then into the APP_b partition.</p>
+</li>
+<li>
+<p>The boot partitions are initialized by <code>chroot</code>ing into the just-installed APP partition
+to run <code>tegra-bootloader-update --initialize</code> using the BUP payload and
+<code>/usr/share/tegra-boot-tools/boot-partitions.conf</code> configuration file from the just-installed
+rootfs.</p>
+</li>
+</ol>
+<p>Once the above steps are complete, the device can be rebooted, and should boot into
+the 32.5.0-based image.</p>
+<p>(Please note that the <code>tegra-sysinstall</code> scripts were developed to test support for
+secure boot combined with LUKS encrypted filesystems and programming a unique machine
+ID in the odm_reserved fuses, so there are several functions in the scripts that can
+be ignored/skipped for testing the installation process.)</p>
+<h1 id="things-to-watch-out-for"><a class="header" href="#things-to-watch-out-for">Things to watch out for</a></h1>
+<ul>
+<li>
+<p>If the initramfs with the installation tools is too large for cboot to handle properly
+(it has some compiled-in limits on the amount of memory it can reserve for the initial
+RAM disk), you’ll see data abort errors on the serial console.</p>
+</li>
+<li>
+<p>If the BUP payload is missing any of the boot-related contents, the device will fail
+to boot when rebooting after the installation process is complete - one of the early-stage
+bootloaders will report errors on the serial console, and the device should go into
+USB recovery mode.</p>
+</li>
+<li>
+<p>The above can also happen if there is a mismatch in the starting offsets and/or sizes
+of any of the boot partitions in the eMMC and the expected offsets that got built into
+the boot control tables for the bootloader during BUP generation. It’s important that
+the <code>/usr/share/tegra-sysinstall/partition_table</code> configuration file in the
+initramfs gets correctly generated from the same flash layout XML file that you are
+using for the <em>image you are upgrading to</em>.</p>
+</li>
+<li>
+<p>Any power interruption or other event that causes the device to reset or reboot, or
+otherwise interrupt the reflashing process, will render the device unbootable. Since
+the process can take several minutes (depending on the specific hardware, size of the
+image being installed, etc.), use of this process should be managed carefully.</p>
+</li>
+<li>
+<p>Full BUP support in meta-tegra, covering multiple module revisions in a single payload,
+was added with the update to <a href="L4T-R32.3.1-Notes.html#bootloader-update-support">L4T R32.3.1</a>.
+If you are currently running builds based off an older version of L4T, you may run into
+boot issues after installing the upgrader BUP payload on some TX2 modules.  Adjusting the
+TEGRA_FAB setting in your build configuration to match the actual FAB revision of the
+module(s) you’re using should help with this.</p>
+</li>
+</ul>
+<h1 id="video-walkthrough"><a class="header" href="#video-walkthrough">Video walkthrough</a></h1>
+<p>See the <a href="https://youtu.be/8Rc46O9Fyu4">OE4T May 2021 meeting video</a> and <a href="https://github.com/OE4T/meta-tegra/wiki/OE4T-Meeting-Notes---2021-05-13">notes</a>
+for initial discussion and walkthrough of the content discussed here.</p>
+<h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
+<ul>
+<li>Jetson TX2 - upgrade from <a href="https://github.com/madisongh/test-distro/tree/warrior/">L4T R32.1-based build</a>
+to <a href="https://github.com/OE4T/tegra-demo-distro/tree/dunfell-l4t-r32.4.3">L4T R32.4.3-based build</a></li>
+<li>Jetson TX2 - upgrade from custom Sumo+L4T R28.1-based (U-Boot) build to
+<a href="https://github.com/OE4T/tegra-demo-distro/tree/dunfell-l4t-r32.4.3">L4T R32.4.3-based build</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="pps-gpio-support-on-jetson-tx1-tx2"><a href="#pps-gpio-support-on-jetson-tx1-tx2" class="header">PPS GPIO Support on Jetson TX1 TX2</a></h1>
+<p>I thought I would add this here in the event someone else is searching for how to add a PPS input to TX1/TX2 systems.  Hours of reading and searching yielded nothing other than the fact that NVIDIA doesn’t support it on the dev kits and they don’t provide any more information. I hope that someone can take this and use it for what they need, whether on commercial carriers or even on the dev kit board – maybe this is fairly common knowledge to those who work in device trees all the time, but for a noob to ARM and device trees, I would have found a page like this extremely valuable.</p>
+<p>My setup is I have a TX1 on the Astro carrier from ConnectTech.  I’m using the pyro-r24.2.2 branch of meta-tegra and pyro for poky/meta-openembedded.</p>
+<p>I requested the DTS files for the ASG001 (Astro carrier) from ConnectTech and created my own machine layer, using the jetson-tx1 machine from meta-tegra as a starting point.  This utilizes the 3.10 kernel.</p>
+<p>To enable PPS support, I added the following block immediately below the gpio@6000d000 section of mono-tegra210-jetson-tx1-CTI-ASG001.dts:</p>
+<pre><code>        pps {
+                gpios = &lt;&amp;{/gpio@6000d000} 187 0&gt;;
+
+                compatible = "pps-gpio";
+                status = "okay";
+        };
+</code></pre>
+<p>This only added PPS support to the device tree, however the 3.10 kernel doesn’t support PPS GPIO clients on the device tree, so that support needed to be added by manually applying this patch to the source (I applied it in the tmp/work-shared kernel source git repo and created a patch I used in my linux-tegra bbappend):  https://github.com/beagleboard/meta-beagleboard/blob/master/common-bsp/recipes-kernel/linux/linux-mainline-3.8/pps/0003-pps-gpio-add-device-tree-binding-and-support.patch</p>
+<p>For later releases (it appears as early as R27.1), PPS GPIO support for device trees is present in the linux-tegra kernel, so the only requirement is adding the pps block to the DTS.</p>
+<p>Finally, ensure that CONFIG_PPS and CONFIG_PPS_CLIENT_GPIO are enabled in your kernel configuration (I copied the defconfig, modified it, and added a do_configure_prepend() to my bbappend).</p>
+<pre><code>do_configure_prepend() {
+        cp ${WORKDIR}/defconfig-cti ${WORKDIR}/defconfig
+}
+</code></pre>
+<p>At that point, build a typical image (I use core-image-full-cmdline - I take it others will work the same way) gives a functional PPS input into the kernel.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>As of 08 Dec 2023, this feature is supported in the kirkstone, mickledore, nanbield, and master branches.</p>
+<p>As of the latest Jetpack 5 r35.x releases, NVIDIA provides partition layouts which support <a href="https://docs.nvidia.com/jetson/archives/r35.4.1/DeveloperGuide/text/SD/RootFileSystem.html#root-file-system-redundancy">Root File System Redundancy</a>, whereby bootloader slots and rootfs slots are paired together to support automatically selecting the associated root filesystem partition at boot to match the selected bootloader slot.  The selected bootloader slot, a or b, will select the corresponding rootfs slot a or b.</p>
+<p>When paired with the UEFI <a href="https://github.com/OE4T/meta-tegra/pull/1285">capsule update</a> feature, a redundant root filesystem supports switching the root filesystem, kernel, and kernel dtb to match the updated bootloader slot.  When paired with an update tool which can update kernel, dtb and rootfs partitions (swupdate, rauc, mender, or others) the process of performing capsule update can also switch to an updated rootfs through the redundant rootfs feature.</p>
+<p>If you have the available root filesystem space to support redundant rootfs, using a redundant partition layout at the outset of your project might give you the option to support updates later without a repartition (or tegraflash) of the device.</p>
+<h1 id="selecting-redundant-root-filesystem-partition-layout"><a class="header" href="#selecting-redundant-root-filesystem-partition-layout">Selecting Redundant Root Filesystem Partition Layout</a></h1>
+<p>By default, both the stock NVIDIA provided Jetpack image as well as OE4T images use the non redundant partition layouts.</p>
+<p>To use NVIDIA provided redundant partition layouts and automatically apply the necessary <a href="todo">dtb changes performed by NVIDIA’s flash.sh script</a>, on branches which include https://github.com/OE4T/meta-tegra/pull/1428, you simply need to set <code>USE_REDUNDANT_FLASH_LAYOUT_DEFAULT = "1"</code> in your distro configuration, custom MACHINE configuration, (or local.conf).  This is currently supported for most targets.  See the notes below for limitations.</p>
+<p>This configuration is set as the default for all supported targets when building with <a href="https://github.com/OE4T/tegra-demo-distro">tegra-demo-distro</a>.</p>
+<h1 id="testing-root-filesystem-ab-slot-switching"><a class="header" href="#testing-root-filesystem-ab-slot-switching">Testing Root Filesystem A/B Slot Switching</a></h1>
+<p>See the sequence in https://github.com/OE4T/meta-tegra/pull/1428 to validate root slot and boot slot switching.</p>
+<h1 id="setting-up-a-custom-machine"><a class="header" href="#setting-up-a-custom-machine">Setting Up a Custom MACHINE</a></h1>
+<p>Use these variables to setup a MACHINE or distro with support for redundant flash layouts:</p>
+<ul>
+<li><code>USE_REDUNDANT_FLASH_LAYOUT_DEFAULT</code> - Set to <code>"1"</code> in your distro layer to use redundant flash layouts for any supported MACHINEs.  Set to <code>"0"</code> to use default non-redundant layouts from NVIDIA when using tegra-demo-distro (<code>USE_REDUNDANT_FLASH_LAYOUT_DEFAULT</code> is the default for master branch builds of tegra-demo-distro).</li>
+<li><code>ROOTFSPART_SIZE_DEFAULT</code> - Set with the size of the root filesystem partition when using the default (non-redundant) flash layout.  This size will be automatically divided by 2 when <code>USE_REDUNDANT_FLASH_LAYOUT</code> is selected.</li>
+<li><code>PARTITION_LAYOUT_TEMPLATE_DEFAULT</code> - set with the partition layout to use with the default (non, external, non redundant) flash layout, for instance <code>custom_layout.xml</code>.   Either provide a <code>custom_external_layout_rootfs_ab.xml</code> file or define <code>PARTITION_LAYOUT_TEMPLATE_REDUNDANT</code> with your redundant file.</li>
+<li><code>PARTITION_LAYOUT_TEMPLATE_DEFAULT_SUPPORTS_REDUNDANT</code> - Set to <code>"1"</code> if no <code>PARTITION_LAYOUT_TEMPLATE_REDUNDANT</code> is required for this MACHINE (and the same template is used for redundant or non redundant builds).</li>
+<li><code>PARTITION_LAYOUT_EXTERNAL_DEFAULT</code> - Set with the default partition layout when using an external device (sdcard or NVMe) for rootfs partition storage, for instance <code>custom_external_layout.xml</code>. Either provide a <code>custom_external_layout_rootfs_ab.xml</code> file or define <code>PARTITION_LAYOUT_EXTERNAL_REDUNDANT</code> with your redundant file.</li>
+<li><code>HAS_REDUNDANT_PARTITION_LAYOUT_EXTERNAL</code> - Set to <code>"0"</code> if your MACHINE does not support a <code>PARTITION_LAYOUT_EXTERNAL_REDUNDANT</code> and therefore does not support <code>USE_REDUNDANT_FLASH_LAYOUT_DEFAULT</code></li>
+</ul>
+<h2 id="overriding-bsp-layer-changes"><a class="header" href="#overriding-bsp-layer-changes">Overriding BSP Layer Changes</a></h2>
+<p>Use <code>ROOTFSPART_SIZE</code>, <code>PARTITION_LAYOUT_EXTERNAL</code> and <code>PARTITION_LAYOUT_TEMPLATE</code> as done before changes in https://github.com/OE4T/meta-tegra/pull/1428, to provide your own implementation outside the BSP layer and ignore the setting of <code>USE_REDUNDANT_FLASH_LAYOUT</code>.</p>
+<h1 id="limitations"><a class="header" href="#limitations">Limitations</a></h1>
+<p>NVIDIA does not provide a redundant flash layout for <code>flash_l4t_external.xml</code>.  Any targets which use <code>flash_l4t_external.xml</code>, which as of   https://github.com/OE4T/meta-tegra/pull/1295 include Orin NX 16 GB in P3509 carrier, Orin NX 16 GB in P3768 carrier, or Orin Nano 4GB in p3768 carrier use <code>HAS_REDUNDANT_PARTITION_LAYOUT_EXTERNAL ?= "0"</code> and therefore don’t support the <code>USE_REDUNDANT_FLASH_LAYOUT</code> feature described here.  Alternatively, override <code>USE_REDUNDANT_FLASH_LAYOUT = "1"</code> and set <code>PARTITION_LAYOUT_EXTERNAL_DEFAULT ?= "flash_l4t_nvme.xml"</code> or your custom external layout, but be aware of issue https://github.com/OE4T/meta-tegra/discussions/1286.
+`</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="spi-support-on-40-pin-header---jetson-nano-devkit"><a class="header" href="#spi-support-on-40-pin-header---jetson-nano-devkit">SPI support on 40 pin header - Jetson Nano devkit</a></h1>
+<p>For enabling SPI support for Jetson Nano please use this <a href="https://github.com/OE4T/meta-tegra/files/6452741/0001-nvidia-platform-t210-enable-SPI0-pins-on-40-pin-head.patch.txt">patch</a>. This patch cover <code>Jetson nano</code> (eMMC and SDcard version) only.</p>
+<p>SPI devices after applying the patch are available on <code>/dev/spidev0.0</code> and <code>/dev/spidev0.1</code> (as generic spidev devices). You can use <code>spidev_test</code> tool and shortcut <code>MOSI</code>/<code>MISO</code> pins to test if communication is working as expected.</p>
+<p><strong>Note:</strong> some extension boards with SPI chips maybe will not work due to the level shifters which are assembled on 40 pin header.
+Please refer to <a href="https://developer.nvidia.com/embedded/downloads#?search=40-Pin%20Expansion%20Header%20GPIO%20Usage%20Considerations">40 pin header considerations</a> for more details.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>Jetson secure boot support in L4T R35.2.1 implements a different chain of trust from what was present in the <a href="#setting-fuses-for-secure-boot-2">L4T R32</a> releases:</p>
+<ul>
+<li>The Trusty secure OS has been replaced by OP-TEE, which allows for dynamic loading of trusted applications (TAs) from the non-secure world. TAs must be signed, and the public key used for checking the signature is compiled into the OP-TEE OS.</li>
+<li>The cboot bootloader has been replaced by UEFI, which uses its own set of keys for validating signatures on binaries that it loads (Linux kernel, EFI applications, and EFI capsules).</li>
+</ul>
+<p><strong>NOTE</strong> NVIDIA made some changes to the UEFI bootloader in L4T R35.5.0 that require that an “authentication key” be programmed into the Encrypted Key Block on secured devices. If you are updating your secured device from an earlier R35.x release to R35.5.0, you <em>must</em> update the EKB on the device with the added key.  See <a href="https://forums.developer.nvidia.com/t/284400/8">this developer forum thread</a> for more information.</p>
+<h1 id="getting-started"><a class="header" href="#getting-started">Getting started</a></h1>
+<p>Start by reading the <a href="https://docs.nvidia.com/jetson/archives/r36.4.3/DeveloperGuide/SD/Security/SecureBoot.html">Secure Boot</a> section of the Jetson Linux Developer’s Guide.</p>
+<p>The sections below cover specifics of how secure boot and signing are implemented for OE/Yocto builds with meta-tegra.</p>
+<h1 id="bootloader-signing"><a class="header" href="#bootloader-signing">Bootloader signing</a></h1>
+<h2 id="setting-fuses-for-secure-boot"><a class="header" href="#setting-fuses-for-secure-boot">Setting fuses for secure boot</a></h2>
+<p>Follow the instructions in the NVIDIA documentation for generating keys and burning secure boot fuses for your Jetson device. Be warned that burning the fuses is a <strong>one-time</strong> operation, so be extremely careful. You could render your Jetson <strong>permanently unbootable</strong> if something goes wrong during the fuse burning process.</p>
+<h2 id="build-time-bootloader-signing"><a class="header" href="#build-time-bootloader-signing">Build-time bootloader signing</a></h2>
+<p>If you have the bootloader signing and encryption key files available, you can add the following setting to your <code>local.conf</code> to create signed boot images and BUP packages:</p>
+<pre><code>TEGRA_SIGNING_ARGS = "-u /path/to/pkc-signing-key.pem -v /path/to/sbk.key --user_key /path/to/user.key"
+</code></pre>
+<p>These arguments parallel the ones used with the L4T <code>flash.sh</code> script for signing:</p>
+<ul>
+<li>The <code>-u</code> option takes the path name of the RSA private key for PKC signing.</li>
+<li>The <code>-v</code> option takes the path name of the SBK key used for encrypting the binaries loaded at boot time.</li>
+<li>The <code>--user_key</code> option takes the path name of the encryption key you create for use with the <a href="https://docs.nvidia.com/jetson/archives/r36.4.3/DeveloperGuide/SD/Security/OpTee.html#sample-applications">NVIDIA sample OP-TEE TAs</a>.</li>
+</ul>
+<p>Note that with R35.2.1, the <code>--user_key</code> encryption key is used only for the XUSB firmware.  Starting with R35.3.1, the user encryption key is not used for <em>any</em> of the boot firmware.</p>
+<p>Build-time bootloader signing will be performed on the boot-related files in the <code>tegraflash</code> package for flashing, as well as the entries in any bootloader update payloads (BUPs).</p>
+<h2 id="post-build-signing"><a class="header" href="#post-build-signing">Post-build signing</a></h2>
+<p>You can elect to perform bootloader signing outside of the build process by adding the <code>-u</code>, <code>-v</code>, and <code>--user_key</code> options when running the <code>doflash.sh</code> or <code>initrd-flash</code> script during flashing of your <code>tegraflash</code> package.  For BUP generation, add those options when running the <code>generate_bup_payload.sh</code> script to have the bootloader components signed.</p>
+<h1 id="uefi-secure-boot"><a class="header" href="#uefi-secure-boot">UEFI Secure Boot</a></h1>
+<p>To enable UEFI secure boot support, start by generating the PK, KEK, and DB keys and related configuration files, as described in the <a href="https://docs.nvidia.com/jetson/archives/r36.4.3/DeveloperGuide/SD/Security/SecureBoot.html#uefi-secure-boot">UEFI Secure Boot</a> section of the Jetson Linux documentation.</p>
+<p>It should be noted that UEFI boot is not compatible with the legacy secure boot supported on Tegra devices.</p>
+<h2 id="build-time-uefi-signing"><a class="header" href="#build-time-uefi-signing">Build-time UEFI signing</a></h2>
+<p>During the build, signing of the EFI launcher app, the kernel, and device tree files is performed automatically when the following settings are present in your build configuration:</p>
+<pre><code>TEGRA_UEFI_DB_KEY = "/path/to/db.key"
+TEGRA_UEFI_DB_CERT = "/path/to/db.crt"
+</code></pre>
+<p>Both settings must be present, and must point to one of the DB keys you generated (you do not need the PK or KEK keys).</p>
+<h2 id="post-build-uefi-signing"><a class="header" href="#post-build-uefi-signing">Post-build UEFI signing</a></h2>
+<p>Post-build UEFI signing is not currently supported.</p>
+<h2 id="enrolling-uefi-keys-at-build-time"><a class="header" href="#enrolling-uefi-keys-at-build-time">Enrolling UEFI keys at build time</a></h2>
+<p>To enable UEFI secure boot, the PK, KEK, and DB keys you generated must be “enrolled” at boot time. On Jetson platforms, this done by adding the needed key enrollment variable settings to the bootloader’s device tree via the <code>UefiDefaultSecurityKeys.dts</code> file you generated when creating the keys and configuration files. For meta-tegra builds, you can supply this file by adding a bbappend for the <code>tegra-uefi-keys-dtb.bb</code> recipe in one of your own metadata layers, substituting variables MY_LAYER with the path to your layer and MY_UEFI_KEYS_DIR with the path to your uefi_keys directory setup after following instructions linked above</p>
+<pre><code>export MY_LAYER=tegra-demo-distro/layers/meta-tegrademo
+export MY_UEFI_KEYS_DIR=~/uefi_keys/
+mkdir -p ${MY_LAYER}/recipes-bsp/uefi
+cat &gt; ${MY_LAYER}/recipes-bsp/uefi/tegra-uefi-keys-dtb.bbappend &lt;&lt;'EOF'
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+EOF
+mkdir -p ${MY_LAYER}/recipes-bsp/uefi/files
+cp ${MY_UEFI_KEYS_DIR}/UefiDefaultSecurityKeys.dts ${MY_LAYER}/recipes-bsp/uefi/files/
+echo "Copy below is optional, only needed if you plan to update your keys with a capsule update"
+cp ${MY_UEFI_KEYS_DIR}/UefiUpdateSecurityKeys.dts ${MY_LAYER}/recipes-bsp/uefi/files/
+</code></pre>
+<h2 id="enrolling-uefi-keys-at-runtime"><a class="header" href="#enrolling-uefi-keys-at-runtime">Enrolling UEFI keys at runtime</a></h2>
+<p>The Jetson Linux documentation describes the process for enrolling UEFI keys and enabling UEFI secure boot at runtime. You will need to add some packages to your image build to make the necessary commands available.  As of this writing, runtime enrollment has not been tested.</p>
+<h1 id="op-tee-trusted-application-signing"><a class="header" href="#op-tee-trusted-application-signing">OP-TEE Trusted Application signing</a></h1>
+<p>OP-TEE provides a mechanism for loading TAs from the “Rich Execution Environment” (REE, another term for the normal, non-secure OS), which must be signed with a key that is known the OP-TEE OS.  Read the <a href="https://optee.readthedocs.io/en/latest/building/trusted_applications.html#">OP-TEE documentation on TAs</a> for more information.</p>
+<p>By default, a development/test key from the upstream OP-TEE source is compiled in; this configuration should <strong>not</strong> be used in any production device, since the key is publicly available.  You should generate a suitable RSA keypair as described in the OP-TEE documentation.  For build-time signing, add a bbappend for the <code>optee-os</code> recipe in one of your layers.  For build-time signing, your bbappend should resemble the following:</p>
+<pre><code>FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+SRC_URI += "file://optee-signing-key.pem"
+EXTRA_OEMAKE += "TA_SIGN_KEY=${WORKDIR}/optee-signing-key.pem"
+</code></pre>
+<p>Post-build signing of TAs is more difficult, since external TAs are generally packaged and installed into the root filesystem as part of the build. For that approach, though, you would include the public key file in the <code>optee-os</code> bbappend, and set <code>TA_PUBLIC_KEY</code> instead of <code>TA_SIGN_KEY</code>.  The OP-TEE makefiles will sign TAs with the a dummy private key, but the public key you specify will be compiled into the secure OS.  You will have to figure out how to re-sign the TAs with your actual private key before they get used.</p>
+<h1 id="using-the-nvidia-built-in-sample-tas"><a class="header" href="#using-the-nvidia-built-in-sample-tas">Using the NVIDIA built-in sample TAs</a></h1>
+<p>To make use of the encryption/decryption functions NVIDIA provides by default with their OP-TEE implementation, you will need to supply an “Encrypted Keyblob” (EKB) that corresponds to the KEK/K2 fuses you have burned on your Jetson device.  Instructions for generating an EKB are in <a href="https://docs.nvidia.com/jetson/archives/r36.4.3/DeveloperGuide/SD/Security/OpTee.html#tool-for-ekb-generation">this section</a> of the Jetson Linux documentation.  See the note at the top of this page for information about changes in L4T R35.5.0 that require the re-generation of the EKB.</p>
+<p>The <code>tegra-bootfiles</code> recipe installs the default EKB from the L4T kit.  Add a bbappend for that recipe to replace the default with the custom EKB for your device.</p>
+<h2 id="generating-a-custom-ekb"><a class="header" href="#generating-a-custom-ekb">Generating a Custom EKB</a></h2>
+<p>Before replacing the default EKB in your Yocto build, you must generate a custom one that matches OemK1 fuse burned on your Jetson device. To do this, you need the <code>gen_ekb.py</code> script from the NVIDIA OP-TEE samples code base (for the <code>hwkey-agent</code> sample). You can find that script either in the L4T public sources tarball, or on <a href="https://nv-tegra.nvidia.com/r/plugins/gitiles/tegra/optee-src/nv-optee">NVIDIA’s git server</a> (making sure you choose the branch for the L4T version you are targeting).</p>
+<p>Example:</p>
+<pre><code>python3 gen_ekb.py -chip t234 \
+    -oem_k1_key oem_k1.key \
+    -in_sym_key2 sym2_t234.key \
+    -in_auth_key auth_t234.key \
+    -out eks_t234.img
+</code></pre>
+<p>where</p>
+<ul>
+<li><code>oem_k1.key</code> is the OEM_K1 key stored in the OEM_K1 fuse.</li>
+<li><code>sym2_t234.key</code> is the disk encryption key.</li>
+<li><code>auth_t234.key</code> is the UEFI variable authentication key</li>
+<li><code>eks_t234.img</code> is the generated EKB image to be flashed to the EKS partition of the device</li>
+</ul>
+<p>Kernel encryption is not currently supported in meta-tegra, so do <em>not</em> provide the UEFI payload encryption key (using <code>-in_sym_key</code>).</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="setting-fuses-for-secure-boot-2"><a href="#setting-fuses-for-secure-boot-2" class="header">Setting fuses for secure boot</a></h1>
+<p>Bootloader signing is supported for all Jetson targets for which secure boot is available (consult the L4T documentation). Support was added in the <code>zeus</code> branch for tegra186 (Jetson-TX2), and extended to the other SoC types in the <code>dunfell-l4t-r32.4.3</code> branch.</p>
+<p><strong>Note</strong> that with L4T R35.2.1 and later, the secure boot sequence has changed.  See <a href="#getting-started">this page</a> for more information.</p>
+<h2 id="setting-fuses-for-secure-boot-1"><a class="header" href="#setting-fuses-for-secure-boot-1">Setting fuses for secure boot</a></h2>
+<p>To enable secure boot on your device, follow the instructions in the <a href="https://docs.nvidia.com/jetson/l4t/index.html">L4T BSP documentation</a> and the README included in the L4T Secure Boot package that can be downloaded <a href="https://developer.nvidia.com/embedded/linux-tegra">here</a>.</p>
+<h2 id="caveats"><a class="header" href="#caveats">Caveats</a></h2>
+<ul>
+<li>The <code>odmfuse.sh</code> script in some L4T releases has a bug that causes fusing to fail on Jetson-TX2 devices; see <a href="https://github.com/madisongh/meta-tegra/issues/193">issue #193</a> for an explanation and patch.</li>
+<li>The L4T bootloader for tegra210 (TX1/Nano) has a bug that always <strong>disables</strong> secure boot during fuse burning in versions of L4T prior to R32.4.4.  See <a href="https://forums.developer.nvidia.com/t/144888/27">this NVIDIA Developer Forum post</a> for more information, and patched copies of the bootloader with a fix.</li>
+<li>NVIDIA does <strong>not</strong> support secure boot on SDcard-based developer kits (Jetson Nano/Nano-2GB and Jetson Xavier NX). <em>You may
+render your developer kit</em> <strong>permanently unbootable</strong> <em>if you attempt to burn the secure boot fuses</em>.</li>
+<li>The tools and scripts in L4T for secure boot support do not appear to be very well tested from release to release, and occasionally regressions get introduced that break fuse burning for some of the Jetson platforms, so be very careful when updating to a new release of the BSP.</li>
+</ul>
+<h2 id="enabling-boot-image-and-bup-signing-during-the-build"><a class="header" href="#enabling-boot-image-and-bup-signing-during-the-build">Enabling boot image and BUP signing during the build</a></h2>
+<p>If you have the signing and (optional) encryption key files available, you can add the following setting to your <code>local.conf</code> to create signed boot images and BUP packages:</p>
+<pre><code>TEGRA_SIGNING_ARGS = "-u /path/to/signing-key.pem -v /path/to/encryption-key"
+</code></pre>
+<p>The additional arguments will be passed through to the flash-helper script and all files will be signed (and boot files will be encrypted, if the <code>-v</code> option is provided) during the build. The <code>doflash.sh</code> script in the resulting <code>tegraflash</code> package will flash the signed files to the devices.  This is similar to the <code>flashcmd.txt</code> script you would get if you used the L4T <code>flash.sh</code> script with the <code>--no-flash</code> option as mentioned in the NVIDIA secure boot documentation.</p>
+<h3 id="kernel-and-dtb-encryption"><a class="header" href="#kernel-and-dtb-encryption">Kernel and DTB encryption</a></h3>
+<p>Starting with L4T R32.5.0, cboot on tegra186 (TX2) and tegra194 (Xavier) platforms expect the kernel (boot.img) and kernel device tree
+to be encrypted as well as signed. This encryption is performed by a service in Trusty and uses a different encryption key than the one
+used for encrypting the bootloaders.  See the L4T documentation for information on setting this up.</p>
+<p>If you have set up kernel/DTB encryption on your device, add <code>--user_key /path/to/kernel-encryption-key</code> to <code>TEGRA_SIGNING_ARGS</code>.
+If you do not go through the extra steps of setting up a kernel encryption key, an all-zeros key will be used by default.</p>
+<h2 id="manual-signing"><a class="header" href="#manual-signing">Manual signing</a></h2>
+<p>If you prefer not to have the signing occur during your build, you can manually add the necessary arguments to your invocation of <code>doflash.sh</code> after unpacking the <code>tegraflash</code> package.  For example:</p>
+<pre><code>$ BOARDID=&lt;boardid&gt; FAB=&lt;fab&gt; BOARDSKU=&lt;boardsku&gt; BOARDREV=&lt;boardrev&gt; ./doflash.sh -u /path/to/signing-key.pem -v /path/to-encryption-key
+</code></pre>
+<p>The environment variable settings you need on the command will vary from target to target; consult the “Signing and Flashing Boot Files” section of the <a href="https://docs.nvidia.com/jetson/l4t/index.html">L4T BSP documentation</a> for the specifics.</p>
+<p>With recent branches, BUP generation can also be performed manually.  The <code>tegraflash</code> package includes a <code>generate_bup_payload.sh</code> script that can be run with the same <code>-u</code> (and, if applicable <code>-v</code>) options to generate a BUP payload manually.</p>
+<h2 id="using-a-code-signing-server"><a class="header" href="#using-a-code-signing-server">Using a code signing server</a></h2>
+<p>If you prefer not to have your signing/encryption keys local to your development host, you can override the <code>tegraflash_custom_sign_pkg</code> and <code>tegraflash_custom_sign_bup</code> functions in <code>image_types_tegra.bbclass</code> to package up the files in the current working directory, send them to be signed, then unpack the results back into the current directory. Everything needed to perform the signing, except for the keys, will be present in the package sent to the server. An example implementation of a code signing server is available <a href="https://github.com/madisongh/digsigserver">here</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="update-2020-09-17-1"><a href="#update-2020-09-17-1" class="header">Update 2020-09-17</a></h1>
+<p>Originally, the machine configurations set MACHINE_GSTREAMER_1_0_PLUGIN to include the <code>gstreamer1.0-plugins-tegra</code> package, which is the base set of binary-only gstreamer plugins that is provided with L4T.  In more recent releases, this has been changed to point to <code>gstreamer1.0-omx-tegra</code> instead (and using the now-current MACHINE_HWCODECS variable) to make it easier to build multimedia-ready images.</p>
+<p>Note that since the OpenMAX plugins package is flagged as commercially licensed, it is also whitelisted in the machine configuration with:</p>
+<pre><code>LICENSE_FLAGS_WHITELIST_append = " commercial_gstreamer1.0-omx-tegra"
+</code></pre>
+<h2 id="update-2020-09-17"><a class="header" href="#update-2020-09-17">Update 2020-09-17</a></h2>
+<p>Starting with the branches using L4T R32.4.3 (<code>dunfell-l4t-r32.4.3</code> and later), the commercially-licensed flag was removed from the OpenMAX plugin recipe, as the sources are available and do not appear to contain any encumbered code.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>This page includes some guidance about how to resolve or work around issues with device flashing using the tegraflash package build by the Yocto build.</p>
+<h1 id="general-troubleshooting-tipssuggestions"><a class="header" href="#general-troubleshooting-tipssuggestions">General Troubleshooting Tips/Suggestions</a></h1>
+<ol>
+<li>Make sure you are using the correct flashing operation for your device/target storage.  See the table <a href="#initrd-flashing">here</a> for guidance.
+<ul>
+<li>If your target can support either method, try the alternate method as a troubleshooting step.</li>
+</ul>
+</li>
+<li>Try swapping USB cables/ensure you are using a high quality cable.</li>
+<li>Try power cycling the device/entering tegraflash mode from power on rather than reboot.</li>
+<li>Try running as sudo root or root rather than a user account, especially if any error message mention permissions.</li>
+<li>Switch to an alternative USB host controller as several people have noticed issues with these.   See <a href="https://github.com/OE4T/meta-tegra/issues/1794#issuecomment-2585357649">this issue</a> for instance.
+<ul>
+<li>If you are using a USB 3.0 add-in card, switch to the one connected to the motherboard.</li>
+<li>Try a USB 2.0 port if you have no other USB 3.0 controllers.</li>
+</ul>
+</li>
+<li>Note any failures in logs for the respective flashing method
+<ul>
+<li>Start with the console log.</li>
+<li>Connect the serial console on the target device if possible.</li>
+<li>For initrd-flash steps, consult the host and device logs which are output at the end of the flash process.</li>
+</ul>
+</li>
+<li>Suspect issues with partition table, especially if you’ve modified the partition table or increase sizes of partitions
+<ul>
+<li>Obscure errors like <code>cp: cannot stat 'signed/*': No such file or directory</code> typically mean you’ve got some problem with your custom partition table and/or target storage device size.  See <a href="https://github.com/orgs/OE4T/discussions/1795">this issue</a> for example.</li>
+</ul>
+</li>
+<li>Attempt to reproduce with a devkit and a similar setup from <a href="https://github.com/OE4T/tegra-demo-distro">tegra-demo-distro</a>.</li>
+<li>Use hardware recovery mode entry rather than reboot force-recovery
+<ul>
+<li>See instructions at <a href="#setting-up-for-flashing">Flashing-the-Jetson-Dev-Kit</a> for putting the device in recovery mode.</li>
+<li>Although it’s possible to use <code>reboot force-recovery</code>, note the issues <a href="https://forums.developer.nvidia.com/t/mb1-bl-crash-when-rebooting-to-rcm-from-b-slot/309503/13">here</a> which can occur in some scenarios.  Using hardware recovery is typically a safer option if you are experiencing issues with tegraflash.</li>
+</ul>
+</li>
+<li>Check, if the power-saving TLP Package is installed and running (preferably installed on notebooks/laptops to save battery power). This package disturbs the flashing process. Use <code>sudo apt remove tlp</code> and reboot your host computer to remove it before flashing.</li>
+<li>Use command line to extract tegraflash.tar.gz image file. When extracting by using a GUI app, esp.img file become corrupted. To use  command-line like <code>tar -xf your-image.tegraflash.tar.gz</code> and follow normal flashing procedure with doflash.sh script.</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="update-10-feb-2025"><a class="header" href="#update-10-feb-2025">Update: 10 Feb 2025</a></h1>
+<p>In the <code>master</code> branch:</p>
+<ul>
+<li>The image type for tegraflash packages has been changed to <code>tegraflash.tar</code>.</li>
+<li>The <code>zip</code> format for tegraflash packages has been removed. Zip packages do not work well with Linux sparse files, which are used for the EXT4 filesystem images we include in the package.</li>
+<li>The default for <code>IMAGE_FSTYPES</code> is now set to <code>tegraflash.tar.zst</code>, using zstd compression on the package, which provides good compression with much faster compression and decompression times than gzip. You can override this in your build configuration, if needed.</li>
+</ul>
+<h1 id="update-27-may-2020"><a class="header" href="#update-27-may-2020">Update: 27 May 2020</a></h1>
+<p>As of 27 May 2020, the <code>image_types_tegraflash.bbclass</code> and the helper scripts have
+been enhanced in the branches that support L4T R32.3.1 and later (zeus-l4t-r32.3.1, dunfell,
+dunfell-l4t-r32.4.2, and master). The sections below describe these updates.</p>
+<h1 id="compressed-tar-instead-of-zip-for-packaging"><a class="header" href="#compressed-tar-instead-of-zip-for-packaging">Compressed-tar instead of zip for packaging</a></h1>
+<p>The venerable zip archive format has worked well enough over the years,
+but the zip tools are quite old and don’t have support for modern features
+like parallelism and sparse files. Switching to using a compressed tarball
+for tegraflash packages substantially speeds up build times and preserves
+sparse-file attributes for EXT4 filesystem images, resulting in much smaller
+(actual size vs. apparent size) packages.</p>
+<p>In the zeus-l4t-r32.3.1 and dunfell branches, the default packaging remains <code>zip</code>.
+In dunfell-l4t-r32.4.2 and master, the default packaging has been changed to <code>tar</code>.
+You can set the variable <code>TEGRAFLASH_PACKAGE_FORMAT</code> in your build configuration
+to set the package format you want to use.  Note however, that <code>zip</code> format is deprecated
+and support for it will likely be removed in a future release.</p>
+<h1 id="use-of-bmaptool-for-sdcard-creation"><a class="header" href="#use-of-bmaptool-for-sdcard-creation">Use of bmaptool for SDcard creation</a></h1>
+<p>If you have the <code>bmaptool</code> package installed on your development host, the <code>make-sdcard</code>
+script will use it in place of <code>dd</code> to copy the EXT4 filesystem into the APP partition
+of an SDcard, which (when combined with the <code>tar</code> packaging mentioned above) results in
+much faster SDcard writing.</p>
+<p>To take advantage of this, make sure <code>bmaptool</code> is available on your PATH and specify the
+device name of your SDcard writer when running <code>dosdcard.sh</code>.  For example:</p>
+<pre><code>$ ./dosdcard.sh /dev/sda
+</code></pre>
+<p>The device name will be passed through to the underlying <code>make-sdcard</code> script.  (If you
+run into permissions problems, you may need to use <code>sudo</code>.)</p>
+<h1 id="bup-payload-generation"><a class="header" href="#bup-payload-generation">BUP payload generation</a></h1>
+<p>If you need to create BUP payloads outside of your bitbake builds, the tegraflash
+package now includes all of the files needed to do so, including a script to create
+the payload (similar to the <code>l4t_generate_soc_bup.sh</code> script in L4T):</p>
+<pre><code>$ ./generate_bup_payload.sh
+</code></pre>
+<p>You can pass the <code>-u</code> and/or <code>-v</code> options to this script to specify the public and/or private
+keys for signing the payload contents if your devices are fused for secure boot, and they
+will be passed through to each invocation of the flash helper script.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="prerequisites-3"><a href="#prerequisites-3" class="header">Prerequisites</a></h1>
+<p>On the <code>zeus</code> and later branches (for L4T R32.2.3 and later), the <code>l4t-usb-device-mode</code> recipe is available to set up USB gadgets on a Jetson device for network and serial TTY access. The setup is similar to what’s provided in the L4T/JetPack BSP, except:</p>
+<ul>
+<li>the scripts in the BSP under <code>/opt/nvidia/l4t-usb-device-mode</code> have been replaced by a combination of systemd, udev, and <code>libusbgx</code> configuration files;</li>
+<li>the USB device identifier uses the Linux Foundation vendor ID; and</li>
+<li>no mass storage gadget is created</li>
+</ul>
+<p>Note that as of this writing, support for creating both an ECM gadget and an RNDIS gadget is provided, but the RNDIS gadget has not been tested.</p>
+<h2 id="prerequisites-1"><a class="header" href="#prerequisites-1">Prerequisites</a></h2>
+<ol>
+<li>You must have the <code>meta-oe</code> layer from <a href="https://git.openembedded.org/meta-openembedded/">meta-openembedded</a> in your build for the <code>libusbgx</code> recipe.</li>
+<li>You must use systemd, and include udev and networkd support in its configuration (both of which are on by default in OE-Core zeus).</li>
+</ol>
+<h2 id="network-configuration"><a class="header" href="#network-configuration">Network configuration</a></h2>
+<p>The systemd-networkd configuration files provided automatically create an <code>l4tbr0</code> bridge device that combines the <code>usb0</code> ECM interface and the <code>rndis0</code> RNDIS interface. The bridge is assigned the IP address 192.168.55.1 and runs a DHCP server to serve the address 192.168.55.100 to the host side of the USB connection.</p>
+<h2 id="serial-port-configuration"><a class="header" href="#serial-port-configuration">Serial port configuration</a></h2>
+<p>The serial port is called <code>/dev/ttyGS0</code> on the device, and a udev rule automatically starts <code>serial-getty</code> on the device when it is created.  If the connecting host is running Linux, the corresponding serial TTY will be <code>/dev/ttyACM0</code> (or another <code>/dev/ttyACMx</code> device if there are multiple such devices on your host system).</p>
+<h2 id="using-device-mode-support"><a class="header" href="#using-device-mode-support">Using device mode support</a></h2>
+<p>To use device mode support, just include <code>l4t-usb-device-mode</code> in your image.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="building-cboot-from-sources-1"><a href="#building-cboot-from-sources-1" class="header">Building cboot from sources</a></h1>
+<p>[Applicable to L4T R32.1.0 and later]</p>
+<p>For Jetson AGX Xavier, NVIDIA provides only <strong>cboot</strong> as the bootloader, so there is no U-Boot recipe for that platform. For Jetson TX2, the default configuration uses both - cboot loads U-Boot, which then loads the Linux kernel. You can, however, use just cboot as the bootloader by setting</p>
+<pre><code>PREFERRED_PROVIDER_virtual/bootloader = "cboot-prebuilt"
+</code></pre>
+<p>in your build configuration. If you do this, cboot directly loads the Linux kernel and initial ramdisk from the <code>kernel</code> (or <code>kernel_b</code>) partition, and the kernel image is not added to the root filesystem.</p>
+<p>For branches with L4T R32.4.3 and later (<code>dunfell-l4t-r32.4.3</code>, <code>gatesgarth</code> and later branches), cboot is now built from sources by default, rather than using the prebuilt copy that comes with the L4T kit, so you should specify <code>cboot-t18x</code> instead of <code>cboot-prebuilt</code> for the PREFERRED_PROVIDER setting.</p>
+<p><em>Note</em> that in L4T R32.2.x, cboot has issues if the kernel or the initrd is too large, at least on TX2 platforms,
+causing kernel panics at boot time. With L4T R32.3.1, the kernel size limitation appears to be resolved, but
+if you use a separate initrd (instead of building it into the kernel as an initramfs), there is still a limit
+of just a few megabytes on its size (the relevant definitions (for the TX2) are probably in bootloader/partner/t18x/common/include/soc/t186/tegrabl_sdram_usage.h in the cboot sources). If you plan to customize your kernel to build in more drivers, rather than
+leaving them as loadable modules, or if you need to build more functionality into your initial ram filesystem,
+use R32.3.1 and bundle the initramfs into your kernel.</p>
+<h2 id="building-cboot-from-sources"><a class="header" href="#building-cboot-from-sources">Building cboot from sources</a></h2>
+<p>NVIDIA has, from time to time, made cboot source code available.  For Jetson AGX Xavier platforms, the most recent source release was with L4T R32.2.3, published in the L4T <code>public_sources</code> archive. This copy of cboot was removed from L4T R32.3.1.  For L4T R32.4.2, cboot sources have been published again (for Xavier platforms only) as a separate download. For L4T R32.4.3 and R32.4.4, cboot sources are available for both TX2 and Xavier platforms.</p>
+<p>Older releases (R28.x for TX2, R31.1 for Xavier) were restricted downloads.  You must use your Developer Network login credentials to download the source package from the appropriate L4T page on NVIDIA’s website and store that tarball on your build host. The NVIDIA_DEVNET_MIRROR variable is used to locate the sources; see the recipes for more details on naming.</p>
+<p>To use cboot built from source in your pre-R32.4.3 builds, set</p>
+<pre><code>PREFERRED_PROVIDER_virtual/bootloader = "cboot"
+</code></pre>
+<p>For R32.4.3 and later, the default is to build cboot from source, and the recipe names changed to be <code>cboot-t18x</code> for Jetson TX2 platforms and <code>cboot-t19x</code> for Jetson Xavier platforms.</p>
+<h2 id="packageconfig-for-cboot-builds"><a class="header" href="#packageconfig-for-cboot-builds">PACKAGECONFIG for cboot builds</a></h2>
+<p>In branches with L4T R32.4.3 and later, you can control the inclusion of some cboot features by modifying the PACKAGECONFIG setting for the cboot recipe for your target device. All features are enabled by default, to match the stock L4T settings.</p>
+<p>For Jetson-TX2 (tegra186/t18x) platforms, the following PACKAGECONFIG options are available:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>PACKAGECONFIG option</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>display</td><td>cboot initializes the display; can be disabled for headless targets</td></tr>
+<tr><td>recovery</td><td>enables booting the recovery kernel and rootfs (not currently populated in L4T)</td></tr>
+</tbody>
+</table>
+</div>
+<p>For Xavier (tegra194/t19x) platforms, the following PACKAGECONFIG options are available:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>PACKAGECONFIG option</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>bootdev-select</td><td>enables booting from devices other than the built-in eMMC or SATA interfaces</td></tr>
+<tr><td>display</td><td>cboot initializes the display; can be disabled for headless targets</td></tr>
+<tr><td>ethernet</td><td>enables booting over the Ethernet interface</td></tr>
+<tr><td>extlinux</td><td>enables cboot’s half-baked support for using an <code>extlinux.conf</code> file</td></tr>
+<tr><td>recovery</td><td>enables booting the recovery kernel and rootfs (not currently populated in L4T)</td></tr>
+<tr><td>shell</td><td>enables the countdown pause during boot to break into the cboot “shell”</td></tr>
+</tbody>
+</table>
+</div>
+<p>Note that removing the <code>bootdev-select</code> option has no effect on builds for the Xavier NX development kit; the recipe always enables that option for that target, since it is required for booting from the SDcard.</p>
+<h1 id="jetson-tx1nano-platforms"><a class="header" href="#jetson-tx1nano-platforms">Jetson TX1/Nano platforms</a></h1>
+<p>While NVIDIA does ship a pre-built version of cboot for the tegra210 platforms (TX1 and Nano), they do not provide source code.  U-Boot is the user-modifiable bootloader for those platforms.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>For many L4T/Jetson Linux releases, NVIDIA has provided a mechanism (the <code>jetson-io</code> scripts) for applying device tree overlays (<code>.dtbo</code> files) dynamically at runtime. For OE/Yocto-based builds, device trees are built from sources, so runtime application of DTB overlays is less of an issue. The <code>meta-tegra</code> layer does provide some mechanisms for applying DTB overlays, through some build-time variable settings.</p>
+<h1 id="build-time-application-of-overlays"><a class="header" href="#build-time-application-of-overlays">Build-time application of overlays</a></h1>
+<p>This mechanism is supported in the branches based on L4T R32.6.x through R35.x only. Overlays are applied to the device tree during the kernel build, directly modifying your kernel DTB. (For L4T R36 and later, the NVIDIA device trees are no longer provided in the kernel source tree.)</p>
+<h2 id="locating-overlays"><a class="header" href="#locating-overlays">Locating overlays</a></h2>
+<p>The exact list of overlays supplied by NVIDIA varies by target platform. You can find them by building the kernel recipe (<code>virtual/kernel</code> or <code>linux-tegra</code>) and examining its output under <code>${BUILDDIR}/work/tmp/${MACHINE}/linux-tegra</code>.</p>
+<h2 id="applying-overlays"><a class="header" href="#applying-overlays">Applying overlays</a></h2>
+<p>Set the <code>KERNEL_DEVICETREE_APPLY_OVERLAYS</code> variable to a blank-separate list of <code>.dtbo</code> file names to have those overlays applied during the kernel build. You can do this in your machine configuration file, or add it, for example, to the <code>local.conf</code> file in your build workspace.</p>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<p>For example, to configure a Jetson Xavier NX development kit for IMX477 and IMX219 cameras, you would add the following line to your <code>$BUILDDIR/conf/local.conf</code> file:</p>
+<pre><code>    KERNEL_DEVICETREE_APPLY_OVERLAYS:jetson-xavier-nx-devkit = "tegra194-p3668-all-p3509-0000-camera-imx477-imx219.dtbo"
+</code></pre>
+<h2 id="other-possible-use-cases"><a class="header" href="#other-possible-use-cases">Other possible use cases</a></h2>
+<p>For U-Boot-based Jetsons (only supported on a subset of Jetson modules with L4T R32.x), the <code>.dtbo</code> files will get populated into the <code>/boot</code> directory in the rootfs, and you could modify the <code>/boot/extlinux/extlinux.conf</code> file to add an <code>FDTOVERLAY</code> line to have one or more overlays applied at boot time. Unfortunately, OE-Core’s support for generating <code>extlinux.conf</code> content does not include support for <code>FDTOVERLAY</code> lines, so to make such a change you would have to work out a way to rewrite that file in a bbappend.</p>
+<h2 id="for-out-of-tree-device-trees"><a class="header" href="#for-out-of-tree-device-trees">For out-of-tree device trees</a></h2>
+<p>For L4T R36.x, the <code>nvidia-kernel-oot</code> recipe is the default device tree provider for the Jetson platforms. You can also set the <code>PREFERRED_PROVIDER_virtual/dtb</code> variable to point to a recipe for providing your own customized device tree. To apply overlays to these device trees, add <code>fdtoverlay</code> invocations to the compilation step via a <code>bbappend</code> (for <code>nvidia-kernel-oot</code>) or in your custom recipe.</p>
+<h3 id="example-out-of-tree-devicetree-in-tegra-demo-distro"><a class="header" href="#example-out-of-tree-devicetree-in-tegra-demo-distro">Example out-of-tree devicetree in tegra-demo-distro</a></h3>
+<p>See the tegra-demo-distro example at <a href="https://github.com/OE4T/tegra-demo-distro/tree/master/layers/meta-tegrademo/recipes-bsp/tegrademo-devicetree">meta-tegrademo/recipes-bsp/tegrademo-devicetree</a> which shows how to modify a base devicetree from <code>nvidia-kernel-oot</code> to one specific to your hardware platform. This simple example just adds a single “compatible” line to your base devicetree.  To use this example:</p>
+<ol>
+<li>Determine which devicetree is currently in use.  One way to do this is with <code>bitbake -e &lt;your image&gt;</code> and look at the value of <code>KERNEL_DEVICETREE</code>.</li>
+<li>Determine whether there’s an existing devicetree in the <a href="https://github.com/OE4T/tegra-demo-distro/tree/master/layers/meta-tegrademo/recipes-bsp/tegrademo-devicetree">meta-tegrademo/recipes-bsp/tegrademo-devicetree</a> which uses your existing devictree as a base.  Current examples are:</li>
+</ol>
+<ul>
+<li><code>tegra234-p3768-0000+p3767-0005-oe4t.dts</code>: <code>jetson-orin-nano-devkit</code> or <code>jetson-orin-nano-devkit-nvme</code> builds on a p3768 (Orin Nano Devboard) carrier</li>
+<li><code>tegra234-p3768-0000+p3767-0000-oe4t.dts</code>: Nvidia Jetson Orin NX 16GB in a p3768 (Orin Nano Devboard) carrier</li>
+<li><code>tegra234-p3737-0000+p3701-0000-oe4t.dts</code>: <code>jetson-agx-orin-devkit</code></li>
+</ul>
+<ol start="3">
+<li>If there’s not an existing devicetree built from your base <code>KERNEL_DEVICETREE</code>, follow the examples to add one to SRC_URI and to the repo.</li>
+<li>Modify your MACHINE conf or local conf to specify your dtb provider and <code>KERNEL_DEVICETREE</code> using something like this:</li>
+</ol>
+<pre><code>PREFERRED_PROVIDER_virtual/dtb = "tegrademo-devicetree"
+KERNEL_DEVICETREE:jetson-orin-nano-devkit-nvme = "tegra234-p3768-0000+p3767-0005-oe4t.dtb"
+KERNEL_DEVICETREE:jetson-orin-nano-devkit = "tegra234-p3768-0000+p3767-0005-oe4t.dtb"
+</code></pre>
+<p>Where <code>KERNEL_DEVICETREE</code> overrides the setting for your MACHINE, referencing the devicetree filename with <code>*.dtb</code> in the place of <code>*.dts</code>.
+5. Build, flash, and boot the board, and <code>cat /sys/firmware/devicetree/base/compatible</code> to see the compatible string printed as configured in the devicetree. You should see a string which starts with “oe4t”, as shown here for the orin nano</p>
+<pre><code>root@jetson-orin-nano-devkit-nvme:~# cat /sys/firmware/devicetree/base/compatible
+oe4t,p3768-0000+p3767-0005+tegrademonvidia,p3768-0000+p3767-0005-supernvidia,p3767-0005nvidia,tegra234
+</code></pre>
+<h1 id="runtime-application-of-overlays-in-spi-flash"><a class="header" href="#runtime-application-of-overlays-in-spi-flash">Runtime application of overlays in SPI Flash</a></h1>
+<p>This mechanism is supported in branches based on L4T R35.x and later. Overlays are appended to the kernel DTB by the NVIDIA flashing/signing tools, and are applied by the UEFI bootloader at runtime.  Overlays are stored in SPI flash and are only updated on capsule update or tegraflash.</p>
+<h2 id="locating-overlays-1"><a class="header" href="#locating-overlays-1">Locating overlays</a></h2>
+<p>The exact list of overlays supplied by NVIDIA varies by target platform. You can find them on R35.x-based branches by building the kernel recipe (<code>virtual/kernel</code> or <code>linux-tegra</code>) and examining its output under <code>${BUILDDIR}/work/tmp/${MACHINE}/linux-tegra</code>.  For R36.x-based branches, device trees are built as part of the <code>nvidia-kernel-oot</code> recipe.</p>
+<h2 id="applying-overlays-1"><a class="header" href="#applying-overlays-1">Applying overlays</a></h2>
+<p>Append your additional overlays to the <code>TEGRA_PLUGIN_MANAGER_OVERLAYS</code> variable, which consists of a blank-separate list of <code>.dtbo</code> file names. You can do this in your machine configuration file, or add it, for example, to the <code>local.conf</code> file in your build workspace. That variable is set by the layer to include overlays that NVIDIA requires for its platforms, so be sure to append to it, rather than overwriting it.</p>
+<h3 id="example-1"><a class="header" href="#example-1">Example</a></h3>
+<p>For example, to configure the pins on the 40-pin expansion header of the Jetson Orin Nano development kit, you would add the following line to your <code>$BUILDDIR/conf/local.conf</code> file:</p>
+<pre><code>    TEGRA_PLUGIN_MANAGER_OVERLAYS:append:jetson-orin-nano-devkit = " tegra234-p3767-0000+p3509-a02-hdr40.dtbo"
+</code></pre>
+<h1 id="runtime-application-of-overlays-in-the-rootfs-partition"><a class="header" href="#runtime-application-of-overlays-in-the-rootfs-partition">Runtime application of overlays in the rootfs partition</a></h1>
+<p>With https://github.com/OE4T/meta-tegra/pull/1968 support is available to apply overlays in the rootfs partition using the <code>OVERLAYS</code> extlinux.conf option.  This means you are able to link overlays to a rootfs slot and store/update there instead of in the SPI flash.</p>
+<p>Only overlays which modify the kernel DTB are supported, since the overlay application happens late in the boot sequence.</p>
+<p>See <a href="#uboot_extlinux_fdtoverlays">this section</a> of the extlinux.conf wiki page for details about configuring <code>OVERLAYS</code> in extlinux.conf.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="configuring-your-builds-for-gcc-7-1"><a href="#configuring-your-builds-for-gcc-7-1" class="header">Configuring your builds for GCC 7</a></h1>
+<p>Starting with the <code>warrior</code> branch, meta-tegra includes a <code>contrib</code> layer with user-contributed recipes
+for optional inclusion in your builds.  The layer includes recipes for gcc7 that you can use for compatibility
+with CUDA 10.0.</p>
+<h2 id="configuring-your-builds-for-gcc-7"><a class="header" href="#configuring-your-builds-for-gcc-7">Configuring your builds for GCC 7</a></h2>
+<p>Follow the steps below to switch to GCC 7:</p>
+<ol>
+<li>Use <code>bitbake-layers add-layer</code> to add the <code>meta-tegra/contrib</code> layer to your project in <code>build/conf/bblayers.conf</code>.</li>
+<li>Select GCC version in your <code>build/conf/local.conf</code> and use the required configuration like this:</li>
+</ol>
+<pre><code>GCCVERSION = "7.%"
+require contrib/conf/include/gcc-compat.conf
+</code></pre>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<p>Older GCC versions, such as GCC 7, does NOT support <code>fmacro-prefix-map</code>. As a result, <a href="https://git.yoctoproject.org/cgit/cgit.cgi/poky/tree/meta/conf/bitbake.conf?h=warrior#n613">due to the default settings</a>, while building newer releases of the Yocto Project, for example Warrior, with older GCC version you may get errors like “cannot compute suffix of object files”. To fix add the following lines to your <code>build/conf/local.conf</code>:</p>
+<pre><code># GCC 7 doesn't support fmacro-prefix-map, results in "error: cannot compute suffix of object files: cannot compile"
+DEBUG_PREFIX_MAP_remove = "-fmacro-prefix-map=${WORKDIR}=/usr/src/debug/${PN}/${EXTENDPE}${PV}-${PR}"
+</code></pre>
+<p><strong>NOTE:</strong> This configuration is applied in <code>contrib/conf/include/gcc-compat.conf</code>. No further actions are required if you have already required it in <code>build/conf/local.conf</code>.</p>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="https://www.yoctoproject.org/working-with-nvidia-tegra-bsp-and-supporting-latest-cuda-versions-yocto-project-summit-2019/">Working with NVIDIA Tegra BSP and Supporting Latest CUDA Versions, Leon Anavi, Yocto Dev Summit 2019</a> <a href="https://wiki.yoctoproject.org/wiki/images/4/43/Yocto-dev-summit-leon-anavi-2019.pdf">slides</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<p><strong>Update 16-Dec-2021:</strong> The master branch has support for restricting the use of the
+older gcc toolchain <em>just</em> for CUDA compilations, and the meta-tegra main layer includes
+the recipes to support this. You no longer need to use an older toolchain for building
+everything, and the recipes for the older toolchains have been dropped from
+the contrib layer.  See <a href="https://github.com/OE4T/meta-tegra/pull/867">#867</a> for more information.</p>
+<h1 id="for-honister-and-earlier-branches"><a class="header" href="#for-honister-and-earlier-branches">For honister and earlier branches</a></h1>
+<p>With the JetPack 4.4 Developer Preview release (L4T R32.4.2), NVIDIA updated CUDA support
+for the Jetson platforms to CUDA 10.2, which is compatible with GCC 8. On the <code>dunfell-l4t-r32.4.2</code>
+and <code>master</code> branches, the <code>contrib</code> layer in this repository has been updated to include recipes
+for the gcc 8 toolchain, imported from the OE-Core <code>warrior</code> branch. If you intend to build
+packages that use CUDA, you should configure your build to use GCC 8.</p>
+<p>If you have previously configured your builds for GCC 7 when using an earlier version of
+meta-tegra with an older L4T/JetPack release, you can retain those settings and continue to
+use GCC, as builds should be compatible with either version of the toolchain.</p>
+<h2 id="configuring-your-builds-for-gcc-8"><a class="header" href="#configuring-your-builds-for-gcc-8">Configuring your builds for GCC 8</a></h2>
+<p>Follow the steps below to switch to GCC 8:</p>
+<ol>
+<li>Use <code>bitbake-layers add-layer</code> to add the <code>meta-tegra/contrib</code> layer to your project in <code>build/conf/bblayers.conf</code>.</li>
+<li>Select GCC version in your <code>build/conf/local.conf</code> and use the required configuration like this:</li>
+</ol>
+<pre><code>GCCVERSION = "8.%"
+</code></pre>
+<p>or</p>
+<pre><code>GCCVERSION_aarch64 = "8.%"
+</code></pre>
+<p>if you have other platforms (with other CPU architectures) in your build setup that require
+the latest toolchain provided by OE-Core.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
+<p>As mentioned in the README, OE-Core removed gcc7 from support starting with the warrior release.  However, CUDA 10 does not support gcc8.  This means you need to pull in another layer or changes which support gcc7 toolchain in order to support CUDA 10.0.</p>
+<p>Fortunately adding gcc7 does not require a lot of work to achieve if using the meta-linaro project.  See tested instructions below.</p>
+<h2 id="instructions-for-warrior-branch"><a class="header" href="#instructions-for-warrior-branch">Instructions for warrior branch</a></h2>
+<ol>
+<li>Add the <a href="https://git.linaro.org/openembedded/meta-linaro.git/">meta-linaro-toolchain</a> layer as a submodule in your project by cloning this project, checking out the appropriate branch (warrior).</li>
+<li>Use <code>bitbake-layers add-layer</code> to add the meta-linaro/meta-linaro-toolchain layer to your project in <code>build/conf/bblayers.conf</code>.  You can add just the meta-linaro-toolchain folder and not the entire meta-linaro layer.</li>
+<li>Reference the GCC version in your <code>build/conf/local.conf</code> like this:</li>
+</ol>
+<pre><code>GCCVERSION = "linaro-7.%"
+</code></pre>
+<ol start="4">
+<li>Add these lines to your <code>build/conf/local.conf</code> to prevent errors like “cannot compute suffix of object files” due to missing fmacro-prefix-map support on GCC7 and based on the <a href="https://git.yoctoproject.org/cgit/cgit.cgi/poky/tree/meta/conf/bitbake.conf?h=warrior#n613">default setting on the warrior branch</a>:</li>
+</ol>
+<pre><code># GCC 7 doesn't support fmacro-prefix-map, results in "error: cannot compute suffix of object files: cannot compile"
+# Change the value from bitbake.conf DEBUG_PREFIX_MAP to remove -fmacro-prefix-map
+DEBUG_PREFIX_MAP = "-fdebug-prefix-map=${WORKDIR}=/usr/src/debug/${PN}/${EXTENDPE}${PV}-${PR} \
+                    -fdebug-prefix-map=${STAGING_DIR_HOST}= \
+                    -fdebug-prefix-map=${STAGING_DIR_NATIVE}= \
+                    "
+</code></pre>
+<ol start="5">
+<li>For recipes which fail during the configuration stage with messages like this:</li>
+</ol>
+<pre><code>cc1: error: -Werror=missing-attributes: no option -Wmissing-attributes
+cc1: error: -Werror=missing-attributes: no option -Wmissing-attributes
+</code></pre>
+<p>Add a .bbappend to your layer which removes the unsupported missing-attributes flag from respective CPPFLAGS for host and target compile.  For instance, to resolve with libxcrypt you can add a <code>/recipes-core/libxcrypt/libxcrypt.bbappend</code> to your layer with content:</p>
+<pre><code># For GCC7 support
+TARGET_CPPFLAGS = "-I${STAGING_DIR_TARGET}${includedir}"
+CPPFLAGS_append_class-nativesdk = ""
+</code></pre>
+<p>Note that the <code>libxcrypt</code> recipe in OE-Core’s <code>warrior</code> branch was updated in September 2019 (for Yocto Project 2.7.2) to remove the compiler option that causes this error with older compilers.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="drmkms-support-1"><a href="#drmkms-support-1" class="header">DRM/KMS support</a></h1>
+<p>Support for Wayland/Weston has been adapted from the open-source libraries and patches that NVIDIA has published, rather than using the binary-only libraries packaged into the L4T BSP.</p>
+<h2 id="drmkms-support"><a class="header" href="#drmkms-support">DRM/KMS support</a></h2>
+<p>Starting with L4T R32.2.x, DRM/KMS support in the BSP is provided through a combination of a custom
+<code>libdrm.so</code> shared library and the <code>tegra-udrm</code> kernel module. The library intercepts some DRM API calls;
+any APIs it does not handle directly are passed through to the standard implementation of <code>libdrm</code>.</p>
+<p>Builds that include <code>weston</code> will also include a configuration file (via the <code>tegra-udrm-probeconf</code> recipe)
+that loads the <code>tegra-udrm</code> module with the parameter <code>modeset=1</code>. This enables KMS support in the
+L4T-specific <code>libdrm</code> library. If your build includes a different Wayland-based compositor, you may also
+need to include this configuration file.</p>
+<p>(Earlier versions of L4T used a different custom <code>libdrm</code> implementation that had no KMS support and was
+not ABI-compatible with the standard <code>libdrm</code> implementation.)</p>
+<h2 id="mesa-build-changes"><a class="header" href="#mesa-build-changes">Mesa build changes</a></h2>
+<p>The Mesa build has been changed to enable <code>libglvnd</code> support, which creates the necessary vendor plugins of the EGL and GLX libraries and packages them as <code>libegl-mesa</code> and <code>libgl-mesa</code>.</p>
+<h2 id="xserver-xorg-changes"><a class="header" href="#xserver-xorg-changes">xserver-xorg changes</a></h2>
+<p>The xserver-xorg build has also been changed to disable DRI and KMS support on Tegra platforms.</p>
+<h2 id="libglvnd"><a class="header" href="#libglvnd">libglvnd</a></h2>
+<p>Starting with L4T R32.1, the BSP uses <a href="https://gitlab.freedesktop.org/glvnd/libglvnd">libglvnd</a> rather than including pre-built copies of the OpenGL/EGL/GLES libraries.</p>
+<h2 id="egl-wayland"><a class="header" href="#egl-wayland">egl-wayland</a></h2>
+<p>The <a href="https://github.com/NVIDIA/egl-wayland">egl-wayland</a> extension is built from source, with an additional patch to correct an issue with detecting Wayland displays and surfaces. The recipe also installs the needed JSON file so that the extension can be found at runtime.</p>
+<h2 id="weston-eglstream"><a class="header" href="#weston-eglstream">weston-eglstream</a></h2>
+<p>NVIDIA’s patches for supporting Weston using the EGLStream/EGLDevice backend are maintained
+<a href="https://gitlab.freedesktop.org/ekurzinger/weston">in this repository</a>. As of L4T R32.2.x, no additional
+Tegra-specific patches are required.</p>
+<p>The <code>--use-egldevice</code> option gets added to the command line when starting Weston to activate this support.</p>
+<p>Note that support for the EGLStream backend was dropped in Weston 10 in favor of using GBM. We supply a backend for <code>libgbm</code> that uses
+NVIDIA’s <code>libnvgbm.so</code> manage GBM objects, and we still patch Weston support the EGLStream protocol for Wayland clients.</p>
+<h2 id="xwayland"><a class="header" href="#xwayland">XWayland</a></h2>
+<p>XWayland appears to work, but hardware-accelerated OpenGL (through the <code>libGLX_nvidia</code> provider) is <em>not</em> available.</p>
+<h2 id="testing-1"><a class="header" href="#testing-1">Testing</a></h2>
+<p>The following tests are performed:</p>
+<ol>
+<li>Verify that <code>core-image-weston</code> builds.</li>
+<li>Verify that weston starts at boot time.</li>
+<li>Verify that weston sample programs, such as <code>weston-simple-egl</code>, display appropriate output.</li>
+<li>Verify that the <code>nveglglessink</code> gstreamer plugin works with the <code>winsys=wayland</code> parameter by running a gstreamer pipeline to display an H.264 video. Note that the <code>DISPLAY</code> environment variable must not be set, per the NVIDIA documentation.</li>
+<li>Verify that the <code>l4t-graphics-demos</code> applications work.</li>
+</ol>
+<h2 id="troubleshooting-1"><a class="header" href="#troubleshooting-1">Troubleshooting</a></h2>
+<p>The following commands work on a Jetson TX2 and probably others:</p>
+<h3 id="turn-off-hdmi"><a class="header" href="#turn-off-hdmi">Turn off HDMI:</a></h3>
+<pre><code>echo -1 &gt; /sys/kernel/debug/tegra_hdmi/hotplug
+echo 4 &gt; /sys/class/graphics/fb0/blank
+</code></pre>
+<p>(<a href="https://gist.github.com/tstellanova/818a0d4533406b519df4#turn-off-hdmi">Source</a>)</p>
+<h3 id="turn-on-hdmi"><a class="header" href="#turn-on-hdmi">Turn on HDMI:</a></h3>
+<pre><code>echo 1 &gt; /sys/kernel/debug/tegra_hdmi/hotplug
+echo 0 &gt; /sys/class/graphics/fb0/blank
+</code></pre>
+<p>(<a href="https://gist.github.com/tstellanova/818a0d4533406b519df4#turn-on-hdmi">Source</a>)</p>
+<h3 id="reading-hdmi-connection-state"><a class="header" href="#reading-hdmi-connection-state">Reading HDMI connection state:</a></h3>
+<p><code>/sys/devices/virtual/switch/hdmi/state</code> is <code>0</code> when disconnected and <code>1</code> when connected. (<a href="https://forums.developer.nvidia.com/t/tx2i-tegra-udrm-hdmi-connection-status/110612/2">Source</a>)</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>While not enabled by default (except on the Jetsons that use the U-Boot bootloader), you can use the
+L4T <code>extlinux.conf</code> support in your builds.</p>
+<h1 id="for-l4t-r35x-and-later"><a class="header" href="#for-l4t-r35x-and-later">For L4T R35.x and later</a></h1>
+<p>In the <code>kirkstone</code> and later branches based on the L4T R35.x and later series of releases, set <code>UBOOT_EXTLINUX = "1"</code> to configure the build to use an <code>extlinux.conf</code> file.  (As of 14 Apr 2024, <code>"1"</code> is now the default setting in the <code>master</code> branch.)</p>
+<p>See the comments in <a href="https://github.com/OE4T/meta-tegra/blob/master/classes-recipe/l4t-extlinux-config.bbclass">l4t-extlinux-config.bbclass</a> for additional configuration settings you can use.</p>
+<h2 id="uboot_extlinux_fdt"><a class="header" href="#uboot_extlinux_fdt">UBOOT_EXTLINUX_FDT</a></h2>
+<p>The <code>UBOOT_EXTLINUX_FDT</code> setting can be set to exactly <code>UBOOT_EXTLINUX_FDT = "/boot/${DTBFILE}"</code> before https://github.com/OE4T/meta-tegra/pull/1968 or to any dtb file without full path (like <code>UBOOT_EXTLINUX_FDT = "${DTBFILE}"</code>) after https://github.com/OE4T/meta-tegra/pull/1968 and backports.</p>
+<p>When set, this adds a devicetree entry in the extlinux.conf file.  This setting is useful for easy testing of devicetree changes in the kernel and to support devicetree transitions on slot switch without capsule update.  Note that when <code>UBOOT_EXTLINUX</code> or <code>UBOOT_EXTLINUX_FDT</code> is not set, the <code>kernel-dtb</code> partitions defined in the root filesystem are ignored and the devicetree for the kernel is taken from the devicetree which is appended to the uefi image, therefore only updated when the uefi image is changed via tegraflash or capsule update.</p>
+<p><code>efivar -p --name 781e084c-a330-417c-b678-38e696380cb9-L4TDefaultBootMode</code> should return a value of <code>1</code> when using this feature. For additional context see <a href="https://matrix.to/#/!YBfWVpJwNVtkmqVCPS:gitter.im/$x-m4h9rIYnwtMOaYtEkHg0a5HFzM4-mcpjoALOGkP4Y?via=gitter.im&amp;via=matrix.org&amp;via=3dvisionlabs.com">this thread</a> in element.</p>
+<h2 id="uboot_extlinux_fdtoverlays"><a class="header" href="#uboot_extlinux_fdtoverlays">UBOOT_EXTLINUX_FDTOVERLAYS</a></h2>
+<p>The PR at https://github.com/OE4T/meta-tegra/pull/1968 adds support for specifying a list of overlays in your extlinux.conf file.  These overlays are also stored on the rootfs and applied to the kernel DTB at boot time after root slot selection.</p>
+<p>This feature is only supported when <code>UBOOT_EXTLINUX_FDT</code> is specified.</p>
+<p>To use, specify</p>
+<pre><code>UBOOT_EXTLINUX_FDT = "${DTBFILE}"
+UBOOT_EXTLINUX_FDTOVERLAYS = "my-overlay.dtbo"
+</code></pre>
+<p>Where <code>"my-overlay.dtbo"</code> is an overlay built using the mechanisms specific to your branch implementation (or potentially one provided by NVIDIA.  See <a href="#build-time-application-of-overlays">Using-device-tree-overlays</a> for more details.  Note that since the overlay only happens to the kernel DTB this mechanism cannot be used to make any changes to the UEFI DTB.</p>
+<h2 id="caveats-1"><a class="header" href="#caveats-1">Caveats</a></h2>
+<ul>
+<li>The upstream UEFI bootloader does not implement this; it was tacked on by NVIDIA in their <code>L4TLauncher</code> EFI application.</li>
+<li>The ext4 filesystem implementation that NVIDIA provides in their bootloader may have some bugs/limitations that could prevent it from reading the <code>extlinux.conf</code> or other files in your root filesystem.  Using newer ext4 features, or non-ext4 filesystems for your root filesystem, could lead to boot failures.</li>
+<li>The <code>extlinux.conf</code> syntax supported in <code>L4TLauncher</code> is not the same as U-Boot’s, and the parsing code isn’t the most robust/forgiving, so be careful about any modifications you may want to make, to avoid boot failures.</li>
+</ul>
+<h1 id="for-l4t-r32x"><a class="header" href="#for-l4t-r32x">For L4T R32.x</a></h1>
+<p>In L4T R32.x:</p>
+<ul>
+<li>The TX1/Nano platforms use U-Boot by default, so no changes are required to use <code>extlinux.conf</code> files.</li>
+<li>The TX2 platform defaults to using U-Boot which supports <code>extlinux.conf</code>.  TX2 builds can be configured to use <code>cboot</code> without U-Boot, and the TX2 <code>cboot</code> implementation does not support <code>extlinux.conf</code>.</li>
+<li>The Xavier platforms have a different <code>cboot</code> code base which (unlike the TX2 implementation) <em>does</em> have some support for <code>extlinux.conf</code> files.  The rest of this page covers the Xavier implementation.</li>
+</ul>
+<h2 id="configuring-xavier-extlinuxconf-support"><a class="header" href="#configuring-xavier-extlinuxconf-support">Configuring Xavier extlinux.conf support</a></h2>
+<p>Add the <code>cboot-extlinux</code> package to your image to enable booting your Xavier device
+with the kernel loaded from <code>/boot</code> in the rootfs instead from from a separate partition.
+This is only available in the <code>kirkstone-l4t-r32.7.x</code> branch (as of this writing).</p>
+<p><strong>Use with caution.</strong>  Not recommended for production use.</p>
+<h3 id="notes"><a class="header" href="#notes">Notes</a></h3>
+<p>The cboot bootloader on the Xavier (t194) platforms has support for loading the kernel, initial ramdisk,
+and device tree from files in the rootfs, rather than the <code>kernel</code> partition. The stock L4T BSP has
+supported this for several releases, installing the kernel image and initrd into <code>/boot</code> and
+a <code>/boot/extlinux/extlinux.conf</code> file that cboot uses to locate the files. This can simplify kernel
+development by eliminating the need to reflash the device to boot with updated kernels.</p>
+<p>To implement this in meta-tegra, the <code>cboot-extlinux</code> recipe has been added.  Adding <code>cboot-extlinux</code> to your
+image will include the necessary files – kernel, initrd (if not bundled), and optionally the
+device tree, along with the <code>extlinux.conf</code> file and signatures for the files that are expected to
+be signed – in your rootfs.</p>
+<p>When extlinux support in cboot is enabled (which it is by default), cboot will first try to mount the rootfs to locate
+the <code>extlinux.conf</code> file.  The rootfs is either marked as such with a partition GUID (see below) or is assumed
+to be the first partition on the boot medium (SDcard, eMMC, or external device). cboot then tries to open
+<code>/boot/extlinux/extlinux.conf</code> on that filesystem. If successful, it parses the configuration, then attempts
+to load the kernel, initrd, and/or device tree based on the path names in the file. For elements that are
+not configured in that file (or all of them, if the file does not exist), cboot falls back to loading them
+from partitions on the device (<code>kernel</code> for the kernel+initrd, <code>kernel-dtb</code> for the device tree).</p>
+<h3 id="extlinuxconf-file-format"><a class="header" href="#extlinuxconf-file-format">extlinux.conf file format</a></h3>
+<p>The format of the configuration file is a subset of the format used in the
+<a href="https://source.denx.de/u-boot/u-boot/-/blob/master/doc/README.distro">distro boot</a>
+feature of U-Boot.  The <code>cboot-extlinux-config.bbclass</code> file implements the cboot-specific configuration subset; see the comments in that
+file for more information.</p>
+<p><strong>WARNING</strong> Modifying the <code>extlinux.conf</code> file incorrectly will often result in
+cboot crashes, making your device unbootable. Use caution when making any changes
+to the file.</p>
+<h3 id="adding-the-device-tree"><a class="header" href="#adding-the-device-tree">Adding the device tree</a></h3>
+<p>By default, the <code>cboot-extlinux</code> recipe installs the default kernel image and initrd
+(if configured to be separate from the kernel), but not the device tree, to align
+with the default stock L4T setup. Set <code>UBOOT_EXTLINUX_FDT = "/boot/${DTBFILE}"</code> in
+either a bbappend or in your <code>local.conf</code> to include the device tree.</p>
+<h3 id="incompatible-with-ab-redundancy"><a class="header" href="#incompatible-with-ab-redundancy">Incompatible with A/B redundancy</a></h3>
+<p>Using <code>cboot-extlinux</code> for loading the kernel is not compatible with the A/B
+redundancy mechanism - the kernel will always be loaded from the A rootfs partition.</p>
+<p>It may be possible to fix this by assigning a unique partition GUID to each of
+the two rootfs partitions, and creating cboot options files (<code>cbo.dtb</code> files) to
+configure the rootfs GUIDs - one to be loaded into the <code>CPUBL-CFG</code> partition, and
+the other into <code>CPUBL-CFG_b</code>. However, that would conflict with the normal bootloader
+update mechanism, since BUP payloads don’t distinguish between the A and B slot for their
+content. Some extra mechanism would be needed to keep the two CPUBL-CFG partitions
+synchronized with the corresponding rootfs partition GUIDs.</p>
+<h3 id="filesystem-restrictions"><a class="header" href="#filesystem-restrictions">Filesystem restrictions</a></h3>
+<p>This has only been tested with ext4-formatted root filesystems, and bugs found in
+cboot’s ext4 implementation have been patched to make this work. Other filesystem types
+are unlikely to work.  Also, you should use the <code>cboot-t19x</code> recipe that builds
+cboot from source to get the required patches (this is the default).</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<p>Notes on extending support for flashing Jetson devices that boot from external storage media (NVMe, USB).</p>
+<p>Last update: 25 Jul 2025</p>
+<p>This is currently supported on branches based off JetPack 5/L4T R35 or later, and <code>kirkstone-l4t-r32.7.x</code>.  For R32.7.x, there is support for T210 (TX1/Nano) as well as T186 (TX2) and T194 (Xavier) targets.</p>
+<h1 id="prerequisites-2"><a class="header" href="#prerequisites-2">Prerequisites</a></h1>
+<p>Beyond the normal host tools required for building and normal flashing, you should also have these commands available on your build host:</p>
+<ul>
+<li><code>sgdisk</code> (from the <code>gdisk</code>/<code>gptfdisk</code> package)</li>
+<li><code>udisksctl</code> (part of the <code>udisks2</code> package)</li>
+</ul>
+<p>You should disable automatic mounting of removable media in your desktop settings. On recent Ubuntu (GNOME), go to Settings -&gt; Removable Media, and check the box next to “Never prompt or start programs on media insertion.”  You may also need to update the <code>/org/gnome/desktop/media-handling/automount</code> setting via <code>dconf</code>.  Check the setting with:</p>
+<pre><code>$ dconf read /org/gnome/desktop/media-handling/automount
+</code></pre>
+<p>If it reports <code>true</code>, set it with:</p>
+<pre><code>$ dconf write /org/gnome/desktop/media-handling/automount false
+</code></pre>
+<p>For Ubuntu 24.04, use <code>gsettings</code>, and also disable <code>automount-open</code>:</p>
+<pre><code>$ gsettings set org.gnome.desktop.media-handling automount false
+$ gsettings set org.gnome.desktop.media-handling automount-open false
+</code></pre>
+<p>If the <code>bmaptool</code> command is available, it will be used for writing to the storage device, which speeds up writes but (currently) requires root privileges (the scripts will automatically use <code>sudo</code> to invoke it when needed).</p>
+<p>No additional host changes should be required</p>
+<p>Your image needs to include a device-tree with <code>usb2-0</code> in <code>otg</code> mode - as <a href="https://github.com/OE4T/linux-tegra-4.9/blob/oe4t-patches-l4t-r32.7.4/nvidia/platform/t19x/jakku/kernel-dts/common/tegra194-p3668-common.dtsi#L127">here</a>.</p>
+<h2 id="avoiding-sudo-1"><a class="header" href="#avoiding-sudo-1">Avoiding Sudo</a></h2>
+<p>Note: <code>sudo</code> access will be needed when writing the disks using <code>bmap-tools</code>. This method below will avoid sudo while mounting/unmounting the flaskpkg and related block devices.</p>
+<p>For running the <code>initrd-flash</code> script without <code>sudo</code>, the host changes mentioned in the “Avoiding sudo” section on the <a href="#initrd-flashing">Flashing the Jetson Dev Kit</a> wiki page still apply.</p>
+<p>In addition, to avoid prompts for authentication at several points in the process you need to configure polkit appropriately.  On Ubuntu 22.04 this can be accomplished with the following script snippet run as sudo root:</p>
+<pre><code>cat &lt;&lt; EOF &gt; /var/lib/polkit-1/localauthority/50-local.d/com.github.oe4t.pkla
+[Allow Mounting for Disk Group]
+Identity=unix-group:disk
+Action=org.freedesktop.udisks2.filesystem-mount
+ResultAny=yes
+
+[Allow Power Off Drive for Disk Group]
+Identity=unix-group:disk
+Action=org.freedesktop.udisks2.power-off-drive
+ResultAny=yes
+EOF
+chmod 644 /var/lib/polkit-1/localauthority/50-local.d/com.github.oe4t.pkla
+systemctl restart polkit
+</code></pre>
+<h1 id="build-configuration"><a class="header" href="#build-configuration">Build configuration</a></h1>
+<p>No configuration is required if you just want to use initrd flashing and still keep your rootfs on the Jetson’s internal storage device. You only need to add a configuration setting if you want to configure your system to have its rootfs (<code>APP</code> partition) on an external storage device.  To do that, add a line to your <code>local.conf</code> such as:</p>
+<pre><code>TNSPEC_BOOTDEV:jetson-xavier-nx-devkit-emmc = "nvme0n1p1"
+</code></pre>
+<ul>
+<li>If trying this out with a different Jetson device, use the MACHINE name for the override in the above.</li>
+<li>If trying USB storage instead of NVMe, use <code>sda1</code> as the boot device, instead of <code>nvme0n1p1</code>.</li>
+</ul>
+<h1 id="flashing-after-build"><a class="header" href="#flashing-after-build">Flashing after build</a></h1>
+<ol>
+<li>Put the Jetson device into recovery mode and connect it to your host via the USB OTG port.</li>
+<li>Unpack the <code>tegraflash</code> tarball into an empty directory.</li>
+<li><code>cd</code> to that directory and run <code>./initrd-flash</code> to start the flashing process.</li>
+</ol>
+<p>The script:</p>
+<ol>
+<li>Uses the RCM boot feature to download a special <a href="https://github.com/OE4T/meta-tegra/blob/master/recipes-core/images/tegra-initrd-flash-initramfs.bb">initrd and kernel</a> that sets up the device as a USB mass storage gadget.</li>
+<li>Waits for the USB storage device to appear on the host, then copies in the bootloader files and a command sequence for the target that instructs it to start the boot device update, and tells it which storage device(s) should be exported to the host for writing.</li>
+<li>Uses the <code>make-sdcard</code> script to write to storage device(s).  This happens in parallel with the target’s programming of the boot device.</li>
+<li>Waits for the target to export another storage device to report its final status and the logs generated on the target. The script copies the device logs into a subdirectory.  When finished, it releases the storage device, and the target reboots automatically.</li>
+</ol>
+<p><strong>Note:</strong> add the current Linux user to the <code>disk</code> group to avoid the usage of <code>sudo</code> to run <code>initrd-flash</code> script.</p>
+<h1 id="re-flashing-just-the-rootfs-storage-device"><a class="header" href="#re-flashing-just-the-rootfs-storage-device">Re-flashing just the rootfs storage device</a></h1>
+<p>The <code>initrd-flash</code> script has a <code>--skip-bootloader</code> option for skipping the programming of the boot partitions, so you can re-flash just the rootfs storage device.  You should only use this option if you have already programmed the boot partitions once with the versions you’re using for your current build.</p>
+<h1 id="possible-future-enhancements"><a class="header" href="#possible-future-enhancements">Possible future enhancements</a></h1>
+<ul>
+<li>Develop the kernel/initrd used here into a more general “recovery” image, and/or applied for cross-version OTA updates, although the specific use cases will probably require something a bit different and need more customization.</li>
+<li>See if something could be done to automate setup when using LUKS encryption.  Direct formatting and partition writing from the host isn’t really an option there.  A hybrid approach (formatting and cryptsetup done on the device, then exporting the encrypted partitions via USB) should be workable.</li>
+</ul>
+<h1 id="how-it-works"><a class="header" href="#how-it-works">How it works</a></h1>
+<ul>
+<li>The helper scripts now support an <code>--external-device</code> option that passes appropriate options to <code>tegraflash.py</code> (needed since one of the BCTs appears to include information the external storage device for the boot chain to work), and an <code>--rcm-boot</code> option to allow direct download/execution of a kernel+initrd image.</li>
+<li>The SDcard-related support in the <code>nvflashxmlparse</code> and <code>make-sdcard</code> scripts was generalized to distinguish between the ‘boot’ device and any ‘rootfs’ device.</li>
+<li>The <code>tegra-flash-init</code> recipe was added to install a minimal init script for the flashing kernel, which sets up a USB mass storage gadget for the device to be flashed.  The serial number advertised by the gadget is the unique chip id (ECID) of the Tegra SoC.</li>
+<li>The <code>initrd-flash</code> script and the flashing kernel/initrd are added to the tegraflash package to drive the process.  The ECID (unique ID) of the SoC is extracted during initial RCM contact and used to locate the correct <code>/dev/sdX</code> device for the partition writing.</li>
+<li>A <code>find-jetson-usb</code> script has been added to wait for the appearance of the Jetson (in recovery mode) on the host USB bus.</li>
+<li>The tegraflash package generator in <code>image_types_tegra.bbclass</code> exports additional settings (e.g., the <code>TNSPEC_BOOTDEV</code> setting) in the file <code>.env.initrd-flash</code> for use by the <code>initrd-flash</code> script.</li>
+<li>The <code>tegra-bootfiles</code> recipe populates an external flash layout (XML) file in addition to the main (internal storage) flash layout file. The default layout from the L4T kit are modified, if required, to ensure that the boot and kernel partitions are present in the correct layout (with no duplicates) when <code>TNSPEC_BOOTDEV</code> set for using external storage.</li>
+</ul>
+<h1 id="notes-1"><a class="header" href="#notes-1">Notes</a></h1>
+<ul>
+<li>RCM booting on T194 platforms bypasses the UEFI bootloader, directly loading the kernel from nvtboot.  This means that the kernel/initrd does not have access to any EFI variables.  UEFI <em>is</em> used in the RCM boot chain on T234 platforms.</li>
+<li>On Xavier NX dev kits (SDcard-based), you must still have an SDcard installed in the slot even if you are booting off an external drive. The SDcard must <em>not</em> have an <code>esp</code> or <code>APP</code> partition on it.  You must manually reformat the SDcard, as the flashing process will not do that for you.  For all other Jetsons with internal eMMC storage, the eMMC <em>will</em> be erased as part of the flashing process (and re-partitioned/re-populated for those platforms that store some of the bootloader binaries in the eMMC).</li>
+<li>Based on readings of some NVIDIA dev forum posts, A/B updates in JetPack 5.0 do not work properly in all cases when booting off an external drive.  That is supposed to be fixed in JetPack 5.1.</li>
+<li>Depending on your device’s configuration (e.g., having multiple storage devices attached), you may need to manually configure the boot order in the UEFI bootloader by hitting <code>ESC</code> when UEFI starts, and then selecting <code>Boot Maintenance Manager</code>, then <code>Boot Options</code>, then <code>Change Boot Order</code>.  This is a limitation in JetPack 5.0 that is supposed to be fixed in JetPack 5.1.</li>
+<li>If you use a custom flash layout for your builds, note that there are some limitations on the composition of your flash layout file(s) due to how the bootloaders and the NVIDIA tools work. For example, you cannot use a SPI flash-only layout for internal storage, since the BUP payload generator expects to be able to create a payload containing the kernel/kernel DTB. The generator will fail during the build, since those partitions are not present in the SPI flash.  You also cannot use a single flash layout that includes only the boot partitions (in, for example, SPI flash on AGX Orin and Xavier NX) and the external storage device (<code>nvme</code>).  The tools that generate the MB1 BCT and/or MB2 BCT will error out because those bootloaders cannot access external storage. Hopefully NVIDIA will resolve these limitations in a future release.</li>
+</ul>
+<h1 id="comparison-with-stock-l4t-initrd-flashing"><a class="header" href="#comparison-with-stock-l4t-initrd-flashing">Comparison with stock L4T initrd flashing</a></h1>
+<ul>
+<li>OE builds are per-machine, so much of the additional scripting to handle different targets during the flashing process can be omitted.</li>
+<li>With OE builds, TNSPEC_BOOTDEV selection is performed at build time. Switching back and forth between external rootfs and internal storage should be done with different builds.</li>
+<li>Stock L4T provides its initrd in prebuilt form, which requires disassembling and reassembling the initrd in the flashing scripts.  With OE, we can build the flashing initrd directly.</li>
+<li>Stock L4T requires customizing the external drive’s flash layout to specify the exact size of the storage device, in sectors.  That’s not required with OE builds, which do not use NVIDIA’s flashing tools to partition the external drive.</li>
+<li>Stock L4T inserts udev rules on the host during flashing and does some network setup to talk to the device.  The process implemented for OE builds does not use any networking and does not require any udev rules changes during the flashing process.  You also don’t have to be root to perform initrd-based flashing for OE builds, if you have followed the instructions <a href="#avoiding-sudo">here</a>. (However, the <code>bmaptool copy</code> command used in the <code>make-sdcard</code> script does need root access for its setup, and the script will run it under <code>sudo</code> for you).</li>
+</ul>
+<h1 id="limitations-on-using-an-external-drive-for-the-rootfs"><a class="header" href="#limitations-on-using-an-external-drive-for-the-rootfs">Limitations on using an external drive for the rootfs</a></h1>
+<ul>
+<li>On Jetson TX2 devices, the bootloaders do not have support for loading the kernel from an external drive.  The kernel, initrd, and device tree must reside on the eMMC (along with some of the boot partitions).</li>
+<li>Other Jetsons that boot directly from the eMMC (TX1, Nano-eMMC, Xavier NX-eMMC, AGX Xavier) also need to have some of the boot partitions in the main part of the eMMC.</li>
+<li>With Jetsons running JetPack 5/L4T R35.1.0, you may need to manually interrupt the UEFI bootloader to adjust the boot order to favor the external drive.  Even then, UEFI may attempt a PXE (network) boot first.  (This appears to be fixed with JetPack 5.1/L4T R35.2.1.)</li>
+</ul>
+<h1 id="known-issues"><a class="header" href="#known-issues">Known issues</a></h1>
+<ul>
+<li>On an AGX Orin configured to use an external drive for the rootfs (NVMe), once it has been flashed using <code>initrd-flash</code>, the RCM boot of the <code>initrd-flash</code> kernel stops working; the NVMe-resident OS is booted instead.  This happens with the stock L4T initrd flashing tools also. To work around the problem, clear the partition table on the NVMe drive (e.g., using <code>sgdisk /dev/nvme0n1 --clear</code>) before resetting the Orin into recovery mode to start the re-flashing process.</li>
+<li>On T210 platforms (TX1/Nano), if you use the normal <code>doflash.sh</code> script, boot binaries will get overwritten (due to the way the NVIDIA flashing tools work), and that will cause an “FDT_ERR_BADMAGIC” error if you later try to run <code>initrd-flash</code>.  The error is minor, and probably won’t cause any real issues with the flashing/booting process.  To be safe, though, you should not mix normal and initrd-based flashing in the same tegraflash directory.</li>
+</ul>
+<h1 id="customizing-external-storage-size"><a class="header" href="#customizing-external-storage-size">Customizing External Storage Size</a></h1>
+<p>Beginning with Jetpack 5.1.2 (r35.4.1) (and <a href="https://github.com/OE4T/meta-tegra/commit/43e1bf6fb07650db1df1af575aa54cc0038481f2">this commit</a>), the <code>TEGRA_EXTERNAL_DEVICE_SECTORS</code> variable is used to customize the total size of device containing the root filesystem (as well as all other partitions in <code>PARTITION_LAYOUT_EXTERNAL</code>).  The default size of this variable assumes a device which is at least 64GB in size.</p>
+<p>You may increase your root filesystem size to a value of around 30GB, leaving space for two root filesystem partitions (to support A/B redundancy) and additional partitions by defining <code>ROOTFSPART_SIZE</code> to a 4K aligned value in bytes of ~30 GB using a setting like <code>ROOTFSPART_SIZE = "30032384000"</code> in your local.conf.</p>
+<p>If you have an external device larger than 64GB and would like to use this for a larger root filesystem, in addition to modifying <code>ROOTFSPART_SIZE</code> you will also need to adjust the <code>TEGRA_EXTERNAL_DEVICE_SECTORS</code> to specify a larger size in sectors.  For instance, to specify a ~60 GB rootfs on a 128 GB flash drive use <code>ROOTFSPART_SIZE = "60064768000"</code>and <code>TEGRA_EXTERNAL_DEVICE_SECTORS = "250000000"</code></p>
+<h1 id="general-tegraflash-troubleshooting-1"><a class="header" href="#general-tegraflash-troubleshooting-1">General Tegraflash Troubleshooting</a></h1>
+<p>See <a href="#general-troubleshooting-tipssuggestions">Tegraflash-Troubleshooting</a></p>
 
                     </main>
 

@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - OE4T Meta Tegra</title>
-        <base href="/">
+        <title>Building cboot from sources - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -176,14 +175,70 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <p>[Applicable to L4T R32.1.0 and later]</p>
+<p>For Jetson AGX Xavier, NVIDIA provides only <strong>cboot</strong> as the bootloader, so there is no U-Boot recipe for that platform. For Jetson TX2, the default configuration uses both - cboot loads U-Boot, which then loads the Linux kernel. You can, however, use just cboot as the bootloader by setting</p>
+<pre><code>PREFERRED_PROVIDER_virtual/bootloader = "cboot-prebuilt"
+</code></pre>
+<p>in your build configuration. If you do this, cboot directly loads the Linux kernel and initial ramdisk from the <code>kernel</code> (or <code>kernel_b</code>) partition, and the kernel image is not added to the root filesystem.</p>
+<p>For branches with L4T R32.4.3 and later (<code>dunfell-l4t-r32.4.3</code>, <code>gatesgarth</code> and later branches), cboot is now built from sources by default, rather than using the prebuilt copy that comes with the L4T kit, so you should specify <code>cboot-t18x</code> instead of <code>cboot-prebuilt</code> for the PREFERRED_PROVIDER setting.</p>
+<p><em>Note</em> that in L4T R32.2.x, cboot has issues if the kernel or the initrd is too large, at least on TX2 platforms,
+causing kernel panics at boot time. With L4T R32.3.1, the kernel size limitation appears to be resolved, but
+if you use a separate initrd (instead of building it into the kernel as an initramfs), there is still a limit
+of just a few megabytes on its size (the relevant definitions (for the TX2) are probably in bootloader/partner/t18x/common/include/soc/t186/tegrabl_sdram_usage.h in the cboot sources). If you plan to customize your kernel to build in more drivers, rather than
+leaving them as loadable modules, or if you need to build more functionality into your initial ram filesystem,
+use R32.3.1 and bundle the initramfs into your kernel.</p>
+<h2 id="building-cboot-from-sources"><a class="header" href="#building-cboot-from-sources">Building cboot from sources</a></h2>
+<p>NVIDIA has, from time to time, made cboot source code available.  For Jetson AGX Xavier platforms, the most recent source release was with L4T R32.2.3, published in the L4T <code>public_sources</code> archive. This copy of cboot was removed from L4T R32.3.1.  For L4T R32.4.2, cboot sources have been published again (for Xavier platforms only) as a separate download. For L4T R32.4.3 and R32.4.4, cboot sources are available for both TX2 and Xavier platforms.</p>
+<p>Older releases (R28.x for TX2, R31.1 for Xavier) were restricted downloads.  You must use your Developer Network login credentials to download the source package from the appropriate L4T page on NVIDIA’s website and store that tarball on your build host. The NVIDIA_DEVNET_MIRROR variable is used to locate the sources; see the recipes for more details on naming.</p>
+<p>To use cboot built from source in your pre-R32.4.3 builds, set</p>
+<pre><code>PREFERRED_PROVIDER_virtual/bootloader = "cboot"
+</code></pre>
+<p>For R32.4.3 and later, the default is to build cboot from source, and the recipe names changed to be <code>cboot-t18x</code> for Jetson TX2 platforms and <code>cboot-t19x</code> for Jetson Xavier platforms.</p>
+<h2 id="packageconfig-for-cboot-builds"><a class="header" href="#packageconfig-for-cboot-builds">PACKAGECONFIG for cboot builds</a></h2>
+<p>In branches with L4T R32.4.3 and later, you can control the inclusion of some cboot features by modifying the PACKAGECONFIG setting for the cboot recipe for your target device. All features are enabled by default, to match the stock L4T settings.</p>
+<p>For Jetson-TX2 (tegra186/t18x) platforms, the following PACKAGECONFIG options are available:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>PACKAGECONFIG option</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>display</td><td>cboot initializes the display; can be disabled for headless targets</td></tr>
+<tr><td>recovery</td><td>enables booting the recovery kernel and rootfs (not currently populated in L4T)</td></tr>
+</tbody>
+</table>
+</div>
+<p>For Xavier (tegra194/t19x) platforms, the following PACKAGECONFIG options are available:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>PACKAGECONFIG option</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>bootdev-select</td><td>enables booting from devices other than the built-in eMMC or SATA interfaces</td></tr>
+<tr><td>display</td><td>cboot initializes the display; can be disabled for headless targets</td></tr>
+<tr><td>ethernet</td><td>enables booting over the Ethernet interface</td></tr>
+<tr><td>extlinux</td><td>enables cboot’s half-baked support for using an <code>extlinux.conf</code> file</td></tr>
+<tr><td>recovery</td><td>enables booting the recovery kernel and rootfs (not currently populated in L4T)</td></tr>
+<tr><td>shell</td><td>enables the countdown pause during boot to break into the cboot “shell”</td></tr>
+</tbody>
+</table>
+</div>
+<p>Note that removing the <code>bootdev-select</code> option has no effect on builds for the Xavier NX development kit; the recipe always enables that option for that target, since it is required for booting from the SDcard.</p>
+<h1 id="jetson-tx1nano-platforms"><a class="header" href="#jetson-tx1nano-platforms">Jetson TX1/Nano platforms</a></h1>
+<p>While NVIDIA does ship a pre-built version of cboot for the tegra210 platforms (TX1 and Nano), they do not provide source code.  U-Boot is the user-modifiable bootloader for those platforms.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="USB-device-mode-support.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="Using-device-tree-overlays.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -191,7 +246,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="USB-device-mode-support.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="Using-device-tree-overlays.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>

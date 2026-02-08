@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - OE4T Meta Tegra</title>
-        <base href="/">
+        <title>General Troubleshooting Tips/Suggestions - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -176,14 +175,57 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <p>This page includes some guidance about how to resolve or work around issues with device flashing using the tegraflash package build by the Yocto build.</p>
+<h1 id="general-troubleshooting-tipssuggestions"><a class="header" href="#general-troubleshooting-tipssuggestions">General Troubleshooting Tips/Suggestions</a></h1>
+<ol>
+<li>Make sure you are using the correct flashing operation for your device/target storage.  See the table <a href="Flashing-the-Jetson-Dev-Kit.html">here</a> for guidance.
+<ul>
+<li>If your target can support either method, try the alternate method as a troubleshooting step.</li>
+</ul>
+</li>
+<li>Try swapping USB cables/ensure you are using a high quality cable.</li>
+<li>Try power cycling the device/entering tegraflash mode from power on rather than reboot.</li>
+<li>Try running as sudo root or root rather than a user account, especially if any error message mention permissions.</li>
+<li>Switch to an alternative USB host controller as several people have noticed issues with these.   See <a href="https://github.com/OE4T/meta-tegra/issues/1794#issuecomment-2585357649">this issue</a> for instance.
+<ul>
+<li>If you are using a USB 3.0 add-in card, switch to the one connected to the motherboard.</li>
+<li>Try a USB 2.0 port if you have no other USB 3.0 controllers.</li>
+</ul>
+</li>
+<li>Note any failures in logs for the respective flashing method
+<ul>
+<li>Start with the console log.</li>
+<li>Connect the serial console on the target device if possible.</li>
+<li>For initrd-flash steps, consult the host and device logs which are output at the end of the flash process.</li>
+</ul>
+</li>
+<li>Suspect issues with partition table, especially if you’ve modified the partition table or increase sizes of partitions
+<ul>
+<li>Obscure errors like <code>cp: cannot stat 'signed/*': No such file or directory</code> typically mean you’ve got some problem with your custom partition table and/or target storage device size.  See <a href="https://github.com/orgs/OE4T/discussions/1795">this issue</a> for example.</li>
+</ul>
+</li>
+<li>Attempt to reproduce with a devkit and a similar setup from <a href="https://github.com/OE4T/tegra-demo-distro">tegra-demo-distro</a>.</li>
+<li>Use hardware recovery mode entry rather than reboot force-recovery
+<ul>
+<li>See instructions at <a href="Flashing-the-Jetson-Dev-Kit.html#setting-up-for-flashing">Flashing-the-Jetson-Dev-Kit</a> for putting the device in recovery mode.</li>
+<li>Although it’s possible to use <code>reboot force-recovery</code>, note the issues <a href="https://forums.developer.nvidia.com/t/mb1-bl-crash-when-rebooting-to-rcm-from-b-slot/309503/13">here</a> which can occur in some scenarios.  Using hardware recovery is typically a safer option if you are experiencing issues with tegraflash.</li>
+</ul>
+</li>
+<li>Check, if the power-saving TLP Package is installed and running (preferably installed on notebooks/laptops to save battery power). This package disturbs the flashing process. Use <code>sudo apt remove tlp</code> and reboot your host computer to remove it before flashing.</li>
+<li>Use command line to extract tegraflash.tar.gz image file. When extracting by using a GUI app, esp.img file become corrupted. To use  command-line like <code>tar -xf your-image.tegraflash.tar.gz</code> and follow normal flashing procedure with doflash.sh script.</li>
+</ol>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="Tegra-specific-gstreamer-plugins.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="Tegraflash-enhancements.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -191,7 +233,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="Tegra-specific-gstreamer-plugins.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="Tegraflash-enhancements.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>

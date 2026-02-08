@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - OE4T Meta Tegra</title>
-        <base href="/">
+        <title>Supported branches - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -176,14 +175,32 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <p>Notes on integration of the Jetson-customized NVIDIA container runtime (beta version 0.9.0) with Docker support.
+See <a href="https://github.com/NVIDIA/nvidia-docker/wiki/NVIDIA-Container-Runtime-on-Jetson">this page</a> for information on how this is integrated with the JetPack SDK.</p>
+<h1 id="supported-branches"><a class="header" href="#supported-branches">Supported branches</a></h1>
+<p>Support for the container runtime is available on the <code>zeus-l4t-r32.3.1</code> and later branches.</p>
+<h1 id="layers-required"><a class="header" href="#layers-required">Layers required</a></h1>
+<p>In addition to the OE-Core and meta-tegra layers, you will need the  <a href="https://git.yoctoproject.org/cgit/cgit.cgi/meta-virtualization/">meta-virtualization</a> layer and the <code>meta-oe</code>, <code>meta-networking</code>, and <code>meta-python</code> layers from the <a href="https://git.openembedded.org/meta-openembedded/">meta-openembedded</a> repository.</p>
+<h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>Add <code>virtualization</code> to your DISTRO_FEATURES setting.</p>
+<h1 id="building"><a class="header" href="#building">Building</a></h1>
+<ol>
+<li>To run any containers, add <code>nvidia-docker</code> to your image.</li>
+<li>The <a href="https://ngc.nvidia.com/catalog/containers?orderBy=modifiedDESC&amp;pageNumber=0&amp;query=jetson&amp;quickFilter=containers&amp;filters=">Docker containers that NVIDIA supplies</a> do not bundle in most of the hardware-specific libraries needed to run them, but expect them to be provided by the underlying host OS, so be sure to include TensorRT (<a href="L4T-R32.3.1-Notes.html#tensorrt-packaging-change">note</a>), CuDNN, and/or VisionWorks, if you expect to be running containers needing those packages.</li>
+<li>For containers that use GStreamer, be sure to include the Jetson-specific GStreamer plugins you may need.</li>
+</ol>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="Linux-4.x-kernel-notes.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="NVIDIA_DEVNET_MIRROR-and-SDK-Manager.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -191,7 +208,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="Linux-4.x-kernel-notes.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="NVIDIA_DEVNET_MIRROR-and-SDK-Manager.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>

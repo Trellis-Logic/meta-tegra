@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - OE4T Meta Tegra</title>
-        <base href="/">
+        <title>Setting fuses for secure boot - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -176,14 +175,49 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <p>Bootloader signing is supported for all Jetson targets for which secure boot is available (consult the L4T documentation). Support was added in the <code>zeus</code> branch for tegra186 (Jetson-TX2), and extended to the other SoC types in the <code>dunfell-l4t-r32.4.3</code> branch.</p>
+<p><strong>Note</strong> that with L4T R35.2.1 and later, the secure boot sequence has changed.  See <a href="Secure-Boot-Support-in-L4T-R35.2.1-and-later.html">this page</a> for more information.</p>
+<h2 id="setting-fuses-for-secure-boot"><a class="header" href="#setting-fuses-for-secure-boot">Setting fuses for secure boot</a></h2>
+<p>To enable secure boot on your device, follow the instructions in the <a href="https://docs.nvidia.com/jetson/l4t/index.html">L4T BSP documentation</a> and the README included in the L4T Secure Boot package that can be downloaded <a href="https://developer.nvidia.com/embedded/linux-tegra">here</a>.</p>
+<h2 id="caveats"><a class="header" href="#caveats">Caveats</a></h2>
+<ul>
+<li>The <code>odmfuse.sh</code> script in some L4T releases has a bug that causes fusing to fail on Jetson-TX2 devices; see <a href="https://github.com/madisongh/meta-tegra/issues/193">issue #193</a> for an explanation and patch.</li>
+<li>The L4T bootloader for tegra210 (TX1/Nano) has a bug that always <strong>disables</strong> secure boot during fuse burning in versions of L4T prior to R32.4.4.  See <a href="https://forums.developer.nvidia.com/t/144888/27">this NVIDIA Developer Forum post</a> for more information, and patched copies of the bootloader with a fix.</li>
+<li>NVIDIA does <strong>not</strong> support secure boot on SDcard-based developer kits (Jetson Nano/Nano-2GB and Jetson Xavier NX). <em>You may
+render your developer kit</em> <strong>permanently unbootable</strong> <em>if you attempt to burn the secure boot fuses</em>.</li>
+<li>The tools and scripts in L4T for secure boot support do not appear to be very well tested from release to release, and occasionally regressions get introduced that break fuse burning for some of the Jetson platforms, so be very careful when updating to a new release of the BSP.</li>
+</ul>
+<h2 id="enabling-boot-image-and-bup-signing-during-the-build"><a class="header" href="#enabling-boot-image-and-bup-signing-during-the-build">Enabling boot image and BUP signing during the build</a></h2>
+<p>If you have the signing and (optional) encryption key files available, you can add the following setting to your <code>local.conf</code> to create signed boot images and BUP packages:</p>
+<pre><code>TEGRA_SIGNING_ARGS = "-u /path/to/signing-key.pem -v /path/to/encryption-key"
+</code></pre>
+<p>The additional arguments will be passed through to the flash-helper script and all files will be signed (and boot files will be encrypted, if the <code>-v</code> option is provided) during the build. The <code>doflash.sh</code> script in the resulting <code>tegraflash</code> package will flash the signed files to the devices.  This is similar to the <code>flashcmd.txt</code> script you would get if you used the L4T <code>flash.sh</code> script with the <code>--no-flash</code> option as mentioned in the NVIDIA secure boot documentation.</p>
+<h3 id="kernel-and-dtb-encryption"><a class="header" href="#kernel-and-dtb-encryption">Kernel and DTB encryption</a></h3>
+<p>Starting with L4T R32.5.0, cboot on tegra186 (TX2) and tegra194 (Xavier) platforms expect the kernel (boot.img) and kernel device tree
+to be encrypted as well as signed. This encryption is performed by a service in Trusty and uses a different encryption key than the one
+used for encrypting the bootloaders.  See the L4T documentation for information on setting this up.</p>
+<p>If you have set up kernel/DTB encryption on your device, add <code>--user_key /path/to/kernel-encryption-key</code> to <code>TEGRA_SIGNING_ARGS</code>.
+If you do not go through the extra steps of setting up a kernel encryption key, an all-zeros key will be used by default.</p>
+<h2 id="manual-signing"><a class="header" href="#manual-signing">Manual signing</a></h2>
+<p>If you prefer not to have the signing occur during your build, you can manually add the necessary arguments to your invocation of <code>doflash.sh</code> after unpacking the <code>tegraflash</code> package.  For example:</p>
+<pre><code>$ BOARDID=&lt;boardid&gt; FAB=&lt;fab&gt; BOARDSKU=&lt;boardsku&gt; BOARDREV=&lt;boardrev&gt; ./doflash.sh -u /path/to/signing-key.pem -v /path/to-encryption-key
+</code></pre>
+<p>The environment variable settings you need on the command will vary from target to target; consult the “Signing and Flashing Boot Files” section of the <a href="https://docs.nvidia.com/jetson/l4t/index.html">L4T BSP documentation</a> for the specifics.</p>
+<p>With recent branches, BUP generation can also be performed manually.  The <code>tegraflash</code> package includes a <code>generate_bup_payload.sh</code> script that can be run with the same <code>-u</code> (and, if applicable <code>-v</code>) options to generate a BUP payload manually.</p>
+<h2 id="using-a-code-signing-server"><a class="header" href="#using-a-code-signing-server">Using a code signing server</a></h2>
+<p>If you prefer not to have your signing/encryption keys local to your development host, you can override the <code>tegraflash_custom_sign_pkg</code> and <code>tegraflash_custom_sign_bup</code> functions in <code>image_types_tegra.bbclass</code> to package up the files in the current working directory, send them to be signed, then unpack the results back into the current directory. Everything needed to perform the signing, except for the keys, will be present in the package sent to the server. An example implementation of a code signing server is available <a href="https://github.com/madisongh/digsigserver">here</a>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="Secure-Boot-Support-in-L4T-R35.2.1-and-later.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="Tegra-specific-gstreamer-plugins.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -191,7 +225,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="Secure-Boot-Support-in-L4T-R35.2.1-and-later.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="Tegra-specific-gstreamer-plugins.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>

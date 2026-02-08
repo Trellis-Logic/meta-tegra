@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - OE4T Meta Tegra</title>
-        <base href="/">
+        <title>Prerequisites - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -176,14 +175,36 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <p>On the <code>zeus</code> and later branches (for L4T R32.2.3 and later), the <code>l4t-usb-device-mode</code> recipe is available to set up USB gadgets on a Jetson device for network and serial TTY access. The setup is similar to what’s provided in the L4T/JetPack BSP, except:</p>
+<ul>
+<li>the scripts in the BSP under <code>/opt/nvidia/l4t-usb-device-mode</code> have been replaced by a combination of systemd, udev, and <code>libusbgx</code> configuration files;</li>
+<li>the USB device identifier uses the Linux Foundation vendor ID; and</li>
+<li>no mass storage gadget is created</li>
+</ul>
+<p>Note that as of this writing, support for creating both an ECM gadget and an RNDIS gadget is provided, but the RNDIS gadget has not been tested.</p>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<ol>
+<li>You must have the <code>meta-oe</code> layer from <a href="https://git.openembedded.org/meta-openembedded/">meta-openembedded</a> in your build for the <code>libusbgx</code> recipe.</li>
+<li>You must use systemd, and include udev and networkd support in its configuration (both of which are on by default in OE-Core zeus).</li>
+</ol>
+<h2 id="network-configuration"><a class="header" href="#network-configuration">Network configuration</a></h2>
+<p>The systemd-networkd configuration files provided automatically create an <code>l4tbr0</code> bridge device that combines the <code>usb0</code> ECM interface and the <code>rndis0</code> RNDIS interface. The bridge is assigned the IP address 192.168.55.1 and runs a DHCP server to serve the address 192.168.55.100 to the host side of the USB connection.</p>
+<h2 id="serial-port-configuration"><a class="header" href="#serial-port-configuration">Serial port configuration</a></h2>
+<p>The serial port is called <code>/dev/ttyGS0</code> on the device, and a udev rule automatically starts <code>serial-getty</code> on the device when it is created.  If the connecting host is running Linux, the corresponding serial TTY will be <code>/dev/ttyACM0</code> (or another <code>/dev/ttyACMx</code> device if there are multiple such devices on your host system).</p>
+<h2 id="using-device-mode-support"><a class="header" href="#using-device-mode-support">Using device mode support</a></h2>
+<p>To use device mode support, just include <code>l4t-usb-device-mode</code> in your image.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="Tegraflash-enhancements.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="Using-cboot-as-bootloader.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -191,7 +212,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="Tegraflash-enhancements.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="Using-cboot-as-bootloader.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>

@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - OE4T Meta Tegra</title>
-        <base href="/">
+        <title>Selecting Redundant Root Filesystem Partition Layout - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -176,14 +175,43 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <p>As of 08 Dec 2023, this feature is supported in the kirkstone, mickledore, nanbield, and master branches.</p>
+<p>As of the latest Jetpack 5 r35.x releases, NVIDIA provides partition layouts which support <a href="https://docs.nvidia.com/jetson/archives/r35.4.1/DeveloperGuide/text/SD/RootFileSystem.html#root-file-system-redundancy">Root File System Redundancy</a>, whereby bootloader slots and rootfs slots are paired together to support automatically selecting the associated root filesystem partition at boot to match the selected bootloader slot.  The selected bootloader slot, a or b, will select the corresponding rootfs slot a or b.</p>
+<p>When paired with the UEFI <a href="https://github.com/OE4T/meta-tegra/pull/1285">capsule update</a> feature, a redundant root filesystem supports switching the root filesystem, kernel, and kernel dtb to match the updated bootloader slot.  When paired with an update tool which can update kernel, dtb and rootfs partitions (swupdate, rauc, mender, or others) the process of performing capsule update can also switch to an updated rootfs through the redundant rootfs feature.</p>
+<p>If you have the available root filesystem space to support redundant rootfs, using a redundant partition layout at the outset of your project might give you the option to support updates later without a repartition (or tegraflash) of the device.</p>
+<h1 id="selecting-redundant-root-filesystem-partition-layout"><a class="header" href="#selecting-redundant-root-filesystem-partition-layout">Selecting Redundant Root Filesystem Partition Layout</a></h1>
+<p>By default, both the stock NVIDIA provided Jetpack image as well as OE4T images use the non redundant partition layouts.</p>
+<p>To use NVIDIA provided redundant partition layouts and automatically apply the necessary <a href="todo">dtb changes performed by NVIDIA’s flash.sh script</a>, on branches which include https://github.com/OE4T/meta-tegra/pull/1428, you simply need to set <code>USE_REDUNDANT_FLASH_LAYOUT_DEFAULT = "1"</code> in your distro configuration, custom MACHINE configuration, (or local.conf).  This is currently supported for most targets.  See the notes below for limitations.</p>
+<p>This configuration is set as the default for all supported targets when building with <a href="https://github.com/OE4T/tegra-demo-distro">tegra-demo-distro</a>.</p>
+<h1 id="testing-root-filesystem-ab-slot-switching"><a class="header" href="#testing-root-filesystem-ab-slot-switching">Testing Root Filesystem A/B Slot Switching</a></h1>
+<p>See the sequence in https://github.com/OE4T/meta-tegra/pull/1428 to validate root slot and boot slot switching.</p>
+<h1 id="setting-up-a-custom-machine"><a class="header" href="#setting-up-a-custom-machine">Setting Up a Custom MACHINE</a></h1>
+<p>Use these variables to setup a MACHINE or distro with support for redundant flash layouts:</p>
+<ul>
+<li><code>USE_REDUNDANT_FLASH_LAYOUT_DEFAULT</code> - Set to <code>"1"</code> in your distro layer to use redundant flash layouts for any supported MACHINEs.  Set to <code>"0"</code> to use default non-redundant layouts from NVIDIA when using tegra-demo-distro (<code>USE_REDUNDANT_FLASH_LAYOUT_DEFAULT</code> is the default for master branch builds of tegra-demo-distro).</li>
+<li><code>ROOTFSPART_SIZE_DEFAULT</code> - Set with the size of the root filesystem partition when using the default (non-redundant) flash layout.  This size will be automatically divided by 2 when <code>USE_REDUNDANT_FLASH_LAYOUT</code> is selected.</li>
+<li><code>PARTITION_LAYOUT_TEMPLATE_DEFAULT</code> - set with the partition layout to use with the default (non, external, non redundant) flash layout, for instance <code>custom_layout.xml</code>.   Either provide a <code>custom_external_layout_rootfs_ab.xml</code> file or define <code>PARTITION_LAYOUT_TEMPLATE_REDUNDANT</code> with your redundant file.</li>
+<li><code>PARTITION_LAYOUT_TEMPLATE_DEFAULT_SUPPORTS_REDUNDANT</code> - Set to <code>"1"</code> if no <code>PARTITION_LAYOUT_TEMPLATE_REDUNDANT</code> is required for this MACHINE (and the same template is used for redundant or non redundant builds).</li>
+<li><code>PARTITION_LAYOUT_EXTERNAL_DEFAULT</code> - Set with the default partition layout when using an external device (sdcard or NVMe) for rootfs partition storage, for instance <code>custom_external_layout.xml</code>. Either provide a <code>custom_external_layout_rootfs_ab.xml</code> file or define <code>PARTITION_LAYOUT_EXTERNAL_REDUNDANT</code> with your redundant file.</li>
+<li><code>HAS_REDUNDANT_PARTITION_LAYOUT_EXTERNAL</code> - Set to <code>"0"</code> if your MACHINE does not support a <code>PARTITION_LAYOUT_EXTERNAL_REDUNDANT</code> and therefore does not support <code>USE_REDUNDANT_FLASH_LAYOUT_DEFAULT</code></li>
+</ul>
+<h2 id="overriding-bsp-layer-changes"><a class="header" href="#overriding-bsp-layer-changes">Overriding BSP Layer Changes</a></h2>
+<p>Use <code>ROOTFSPART_SIZE</code>, <code>PARTITION_LAYOUT_EXTERNAL</code> and <code>PARTITION_LAYOUT_TEMPLATE</code> as done before changes in https://github.com/OE4T/meta-tegra/pull/1428, to provide your own implementation outside the BSP layer and ignore the setting of <code>USE_REDUNDANT_FLASH_LAYOUT</code>.</p>
+<h1 id="limitations"><a class="header" href="#limitations">Limitations</a></h1>
+<p>NVIDIA does not provide a redundant flash layout for <code>flash_l4t_external.xml</code>.  Any targets which use <code>flash_l4t_external.xml</code>, which as of   https://github.com/OE4T/meta-tegra/pull/1295 include Orin NX 16 GB in P3509 carrier, Orin NX 16 GB in P3768 carrier, or Orin Nano 4GB in p3768 carrier use <code>HAS_REDUNDANT_PARTITION_LAYOUT_EXTERNAL ?= "0"</code> and therefore don’t support the <code>USE_REDUNDANT_FLASH_LAYOUT</code> feature described here.  Alternatively, override <code>USE_REDUNDANT_FLASH_LAYOUT = "1"</code> and set <code>PARTITION_LAYOUT_EXTERNAL_DEFAULT ?= "flash_l4t_nvme.xml"</code> or your custom external layout, but be aware of issue https://github.com/OE4T/meta-tegra/discussions/1286.
+`</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="PPS-GPIO-Support-on-Jetson-TX1-TX2.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="SPI-support.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -191,7 +219,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="PPS-GPIO-Support-on-Jetson-TX1-TX2.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="SPI-support.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
