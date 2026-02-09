@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-91238441.js";
+            window.path_to_searchindex_js = "searchindex-95b83cd6.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-e914ec9b.js"></script>
+        <script src="toc-88ff208f.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -1665,6 +1665,92 @@ cboot from source to get the required patches (this is the default).</p>
 <p>In addition to code and documentation contributions we greatly appreciate help in the form of testing.</p>
 <p>Please see the <a href="https://docs.google.com/spreadsheets/d/1EWG5QZvtWdk74gz48D4xCbegK-bsqMFJ8XOsyGdUUeI/edit#gid=1125662453">Release and Validation</a>
 sheet for a list of current test coverage and test cases.  Request edit on this sheet if you’d like to help contribute.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="documentation-workflow"><a class="header" href="#documentation-workflow">Documentation Workflow</a></h1>
+<p>This project uses <a href="https://rust-lang.github.io/mdBook/">mdBook</a> to generate
+documentation, with GitHub Actions for automated builds and GitHub Pages for
+hosting.</p>
+<h2 id="repository-layout"><a class="header" href="#repository-layout">Repository Layout</a></h2>
+<p>Documentation source files live alongside the Yocto BSP layer content:</p>
+<pre><code>meta-tegra/
+├── book.toml                      # mdBook configuration
+├── docs/                          # Documentation source (markdown)
+│   ├── SUMMARY.md                 # Table of contents for mdBook
+│   ├── README.md                  # Introduction / landing page
+│   ├── *.md                       # Documentation pages
+│   └── mdbook/                    # Custom mdBook assets
+│       ├── css/custom.css         # Version dropdown styling
+│       └── js/version-dropdown.js # Version switching logic
+└── .github/workflows/
+    └── mdbook-versioned.yml       # CI/CD workflow
+</code></pre>
+<p>The <code>book.toml</code> in the repository root configures mdBook. The <code>src</code> setting
+points to the <code>docs/</code> directory, and custom CSS and JavaScript are loaded for
+the version dropdown:</p>
+<pre><code class="language-toml">[book]
+title = "OE4T Meta Tegra"
+authors = ["Matt Madison", "Dan Walkes"]
+language = "en"
+src = "docs"
+
+[output.html]
+additional-css = ["docs/mdbook/css/custom.css"]
+additional-js = ["docs/mdbook/js/version-dropdown.js"]
+</code></pre>
+<h2 id="adding-and-editing-pages"><a class="header" href="#adding-and-editing-pages">Adding and Editing Pages</a></h2>
+<p>All documentation pages are Markdown files in the <code>docs/</code> directory. To add a
+new page:</p>
+<ol>
+<li>Create a new <code>.md</code> file in <code>docs/</code>.</li>
+<li>Add an entry for it in <code>docs/SUMMARY.md</code>. The SUMMARY file defines the table
+of contents and sidebar navigation. Pages not listed in SUMMARY.md will not
+appear in the built documentation.</li>
+</ol>
+<p>To preview the documentation locally, install
+<a href="https://rust-lang.github.io/mdBook/guide/installation.html">mdBook</a> and run:</p>
+<pre><code class="language-sh">mdbook serve
+</code></pre>
+<p>This starts a local web server with live reloading as you edit files.</p>
+<h2 id="multi-version-support"><a class="header" href="#multi-version-support">Multi-Version Support</a></h2>
+<p>Each tracked branch gets its own independent copy of the documentation on GitHub
+Pages. Currently two branches are tracked: <strong>master</strong> and <strong>scarthgap</strong>.</p>
+<h3 id="build-and-deploy"><a class="header" href="#build-and-deploy">Build and Deploy</a></h3>
+<p>The GitHub Actions workflow (<code>.github/workflows/mdbook-versioned.yml</code>) triggers
+on pushes to tracked branches:</p>
+<ol>
+<li><strong>Build</strong> — runs <code>mdbook build</code> inside a <code>peaceiris/mdbook</code> container,
+producing output in a per-branch directory.</li>
+<li><strong>Deploy</strong> — pushes the built HTML to a subdirectory on the <code>gh-pages</code>
+branch using <code>peaceiris/actions-gh-pages</code>.</li>
+</ol>
+<p>Each branch deploys to its own directory, resulting in this structure on the
+<code>gh-pages</code> branch:</p>
+<pre><code>gh-pages/
+├── index.html          # redirects to ./master/
+├── versions.json       # lists available versions for the dropdown
+├── master/             # docs built from the master branch
+└── scarthgap/          # docs built from the scarthgap branch
+</code></pre>
+<p>The workflow can also be triggered manually via <code>workflow_dispatch</code> from the
+GitHub Actions UI.</p>
+<h3 id="version-dropdown"><a class="header" href="#version-dropdown">Version Dropdown</a></h3>
+<p>A custom JavaScript file (<code>docs/mdbook/js/version-dropdown.js</code>) adds a version
+selector dropdown to the mdBook navigation bar. It fetches <code>versions.json</code> from
+the site root to populate the list, and when a different version is selected it
+navigates to the same page path under the new version’s directory.</p>
+<p>The <code>versions.json</code> file is maintained manually on the <code>gh-pages</code> branch (not
+auto-generated), giving explicit control over which versions appear in the
+dropdown.</p>
+<h3 id="adding-a-new-version"><a class="header" href="#adding-a-new-version">Adding a New Version</a></h3>
+<p>To add documentation for a new branch (e.g., <code>kirkstone</code>):</p>
+<ol>
+<li>Add the branch name to the <code>on.push.branches</code> list in
+<code>.github/workflows/mdbook-versioned.yml</code>.</li>
+<li>Push content to that branch. The workflow will automatically build and deploy
+to a new directory on <code>gh-pages</code>.</li>
+<li>Update <code>versions.json</code> on the <code>gh-pages</code> branch to include the new entry so
+it appears in the version dropdown.</li>
+</ol>
 
                     </main>
 

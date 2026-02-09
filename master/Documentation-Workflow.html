@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Tegraflash Enhancements - OE4T Meta Tegra</title>
+        <title>Documentation Workflow - OE4T Meta Tegra</title>
 
 
         <!-- Custom HTML head -->
@@ -175,61 +175,100 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="update-10-feb-2025"><a class="header" href="#update-10-feb-2025">Update: 10 Feb 2025</a></h1>
-<p>In the <code>master</code> branch:</p>
-<ul>
-<li>The image type for tegraflash packages has been changed to <code>tegraflash.tar</code>.</li>
-<li>The <code>zip</code> format for tegraflash packages has been removed. Zip packages do not work well with Linux sparse files, which are used for the EXT4 filesystem images we include in the package.</li>
-<li>The default for <code>IMAGE_FSTYPES</code> is now set to <code>tegraflash.tar.zst</code>, using zstd compression on the package, which provides good compression with much faster compression and decompression times than gzip. You can override this in your build configuration, if needed.</li>
-</ul>
-<h1 id="update-27-may-2020"><a class="header" href="#update-27-may-2020">Update: 27 May 2020</a></h1>
-<p>As of 27 May 2020, the <code>image_types_tegraflash.bbclass</code> and the helper scripts have
-been enhanced in the branches that support L4T R32.3.1 and later (zeus-l4t-r32.3.1, dunfell,
-dunfell-l4t-r32.4.2, and master). The sections below describe these updates.</p>
-<h1 id="compressed-tar-instead-of-zip-for-packaging"><a class="header" href="#compressed-tar-instead-of-zip-for-packaging">Compressed-tar instead of zip for packaging</a></h1>
-<p>The venerable zip archive format has worked well enough over the years,
-but the zip tools are quite old and don’t have support for modern features
-like parallelism and sparse files. Switching to using a compressed tarball
-for tegraflash packages substantially speeds up build times and preserves
-sparse-file attributes for EXT4 filesystem images, resulting in much smaller
-(actual size vs. apparent size) packages.</p>
-<p>In the zeus-l4t-r32.3.1 and dunfell branches, the default packaging remains <code>zip</code>.
-In dunfell-l4t-r32.4.2 and master, the default packaging has been changed to <code>tar</code>.
-You can set the variable <code>TEGRAFLASH_PACKAGE_FORMAT</code> in your build configuration
-to set the package format you want to use.  Note however, that <code>zip</code> format is deprecated
-and support for it will likely be removed in a future release.</p>
-<h1 id="use-of-bmaptool-for-sdcard-creation"><a class="header" href="#use-of-bmaptool-for-sdcard-creation">Use of bmaptool for SDcard creation</a></h1>
-<p>If you have the <code>bmaptool</code> package installed on your development host, the <code>make-sdcard</code>
-script will use it in place of <code>dd</code> to copy the EXT4 filesystem into the APP partition
-of an SDcard, which (when combined with the <code>tar</code> packaging mentioned above) results in
-much faster SDcard writing.</p>
-<p>To take advantage of this, make sure <code>bmaptool</code> is available on your PATH and specify the
-device name of your SDcard writer when running <code>dosdcard.sh</code>.  For example:</p>
-<pre><code>$ ./dosdcard.sh /dev/sda
+                        <h1 id="documentation-workflow"><a class="header" href="#documentation-workflow">Documentation Workflow</a></h1>
+<p>This project uses <a href="https://rust-lang.github.io/mdBook/">mdBook</a> to generate
+documentation, with GitHub Actions for automated builds and GitHub Pages for
+hosting.</p>
+<h2 id="repository-layout"><a class="header" href="#repository-layout">Repository Layout</a></h2>
+<p>Documentation source files live alongside the Yocto BSP layer content:</p>
+<pre><code>meta-tegra/
+├── book.toml                      # mdBook configuration
+├── docs/                          # Documentation source (markdown)
+│   ├── SUMMARY.md                 # Table of contents for mdBook
+│   ├── README.md                  # Introduction / landing page
+│   ├── *.md                       # Documentation pages
+│   └── mdbook/                    # Custom mdBook assets
+│       ├── css/custom.css         # Version dropdown styling
+│       └── js/version-dropdown.js # Version switching logic
+└── .github/workflows/
+    └── mdbook-versioned.yml       # CI/CD workflow
 </code></pre>
-<p>The device name will be passed through to the underlying <code>make-sdcard</code> script.  (If you
-run into permissions problems, you may need to use <code>sudo</code>.)</p>
-<h1 id="bup-payload-generation"><a class="header" href="#bup-payload-generation">BUP payload generation</a></h1>
-<p>If you need to create BUP payloads outside of your bitbake builds, the tegraflash
-package now includes all of the files needed to do so, including a script to create
-the payload (similar to the <code>l4t_generate_soc_bup.sh</code> script in L4T):</p>
-<pre><code>$ ./generate_bup_payload.sh
+<p>The <code>book.toml</code> in the repository root configures mdBook. The <code>src</code> setting
+points to the <code>docs/</code> directory, and custom CSS and JavaScript are loaded for
+the version dropdown:</p>
+<pre><code class="language-toml">[book]
+title = "OE4T Meta Tegra"
+authors = ["Matt Madison", "Dan Walkes"]
+language = "en"
+src = "docs"
+
+[output.html]
+additional-css = ["docs/mdbook/css/custom.css"]
+additional-js = ["docs/mdbook/js/version-dropdown.js"]
 </code></pre>
-<p>You can pass the <code>-u</code> and/or <code>-v</code> options to this script to specify the public and/or private
-keys for signing the payload contents if your devices are fused for secure boot, and they
-will be passed through to each invocation of the flash helper script.</p>
+<h2 id="adding-and-editing-pages"><a class="header" href="#adding-and-editing-pages">Adding and Editing Pages</a></h2>
+<p>All documentation pages are Markdown files in the <code>docs/</code> directory. To add a
+new page:</p>
+<ol>
+<li>Create a new <code>.md</code> file in <code>docs/</code>.</li>
+<li>Add an entry for it in <code>docs/SUMMARY.md</code>. The SUMMARY file defines the table
+of contents and sidebar navigation. Pages not listed in SUMMARY.md will not
+appear in the built documentation.</li>
+</ol>
+<p>To preview the documentation locally, install
+<a href="https://rust-lang.github.io/mdBook/guide/installation.html">mdBook</a> and run:</p>
+<pre><code class="language-sh">mdbook serve
+</code></pre>
+<p>This starts a local web server with live reloading as you edit files.</p>
+<h2 id="multi-version-support"><a class="header" href="#multi-version-support">Multi-Version Support</a></h2>
+<p>Each tracked branch gets its own independent copy of the documentation on GitHub
+Pages. Currently two branches are tracked: <strong>master</strong> and <strong>scarthgap</strong>.</p>
+<h3 id="build-and-deploy"><a class="header" href="#build-and-deploy">Build and Deploy</a></h3>
+<p>The GitHub Actions workflow (<code>.github/workflows/mdbook-versioned.yml</code>) triggers
+on pushes to tracked branches:</p>
+<ol>
+<li><strong>Build</strong> — runs <code>mdbook build</code> inside a <code>peaceiris/mdbook</code> container,
+producing output in a per-branch directory.</li>
+<li><strong>Deploy</strong> — pushes the built HTML to a subdirectory on the <code>gh-pages</code>
+branch using <code>peaceiris/actions-gh-pages</code>.</li>
+</ol>
+<p>Each branch deploys to its own directory, resulting in this structure on the
+<code>gh-pages</code> branch:</p>
+<pre><code>gh-pages/
+├── index.html          # redirects to ./master/
+├── versions.json       # lists available versions for the dropdown
+├── master/             # docs built from the master branch
+└── scarthgap/          # docs built from the scarthgap branch
+</code></pre>
+<p>The workflow can also be triggered manually via <code>workflow_dispatch</code> from the
+GitHub Actions UI.</p>
+<h3 id="version-dropdown"><a class="header" href="#version-dropdown">Version Dropdown</a></h3>
+<p>A custom JavaScript file (<code>docs/mdbook/js/version-dropdown.js</code>) adds a version
+selector dropdown to the mdBook navigation bar. It fetches <code>versions.json</code> from
+the site root to populate the list, and when a different version is selected it
+navigates to the same page path under the new version’s directory.</p>
+<p>The <code>versions.json</code> file is maintained manually on the <code>gh-pages</code> branch (not
+auto-generated), giving explicit control over which versions appear in the
+dropdown.</p>
+<h3 id="adding-a-new-version"><a class="header" href="#adding-a-new-version">Adding a New Version</a></h3>
+<p>To add documentation for a new branch (e.g., <code>kirkstone</code>):</p>
+<ol>
+<li>Add the branch name to the <code>on.push.branches</code> list in
+<code>.github/workflows/mdbook-versioned.yml</code>.</li>
+<li>Push content to that branch. The workflow will automatically build and deploy
+to a new directory on <code>gh-pages</code>.</li>
+<li>Update <code>versions.json</code> on the <code>gh-pages</code> branch to include the new entry so
+it appears in the version dropdown.</li>
+</ol>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="Tegraflash-Troubleshooting.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="OE4T-Contributor-Guide.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="USB-device-mode-support.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -237,13 +276,10 @@ will be passed through to each invocation of the flash helper script.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="Tegraflash-Troubleshooting.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="OE4T-Contributor-Guide.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="USB-device-mode-support.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                    </a>
             </nav>
 
         </div>
