@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-95b83cd6.js";
+            window.path_to_searchindex_js = "searchindex-f2104fb5.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-88ff208f.js"></script>
@@ -1697,7 +1697,11 @@ src = "docs"
 additional-css = ["docs/mdbook/css/custom.css"]
 additional-js = ["docs/mdbook/js/version-dropdown.js"]
 </code></pre>
-<h2 id="adding-and-editing-pages"><a class="header" href="#adding-and-editing-pages">Adding and Editing Pages</a></h2>
+<h2 id="multi-version-support"><a class="header" href="#multi-version-support">Multi-Version Support</a></h2>
+<p>Each tracked branch gets its own independent copy of the documentation on GitHub
+Pages. For the list of branches tracked, refer to the versions.json file in
+the <code>gh-pages</code> branch of this repository.</p>
+<h2 id="adding-pages"><a class="header" href="#adding-pages">Adding Pages</a></h2>
 <p>All documentation pages are Markdown files in the <code>docs/</code> directory. To add a
 new page:</p>
 <ol>
@@ -1706,14 +1710,20 @@ new page:</p>
 of contents and sidebar navigation. Pages not listed in SUMMARY.md will not
 appear in the built documentation.</li>
 </ol>
-<p>To preview the documentation locally, install
+<h2 id="page-editing-tips"><a class="header" href="#page-editing-tips">Page Editing Tips</a></h2>
+<ul>
+<li>Please ensure any embedded links to other documentation files are done with relative
+paths.  For example, use <code>[Link to another page in docs](OtherPageName.md)</code> instead
+of <code>[Link to another page in docs](https://github.com/OE4T/meta-tegra/blob/master/docs/OtherPageName.md)</code></li>
+<li>You can use the trick at <a href="https://stackoverflow.com/a/26601810">this stackoverflow post</a> to add
+images to your markdown file without the need to check images into the repo.</li>
+</ul>
+<h2 id="preview-locally"><a class="header" href="#preview-locally">Preview Locally</a></h2>
+<p>To preview the documentation locally with markdown, install
 <a href="https://rust-lang.github.io/mdBook/guide/installation.html">mdBook</a> and run:</p>
 <pre><code class="language-sh">mdbook serve
 </code></pre>
 <p>This starts a local web server with live reloading as you edit files.</p>
-<h2 id="multi-version-support"><a class="header" href="#multi-version-support">Multi-Version Support</a></h2>
-<p>Each tracked branch gets its own independent copy of the documentation on GitHub
-Pages. Currently two branches are tracked: <strong>master</strong> and <strong>scarthgap</strong>.</p>
 <h3 id="build-and-deploy"><a class="header" href="#build-and-deploy">Build and Deploy</a></h3>
 <p>The GitHub Actions workflow (<code>.github/workflows/mdbook-versioned.yml</code>) triggers
 on pushes to tracked branches:</p>
