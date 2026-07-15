@@ -18,8 +18,12 @@ do_compile() {
         bberror "Missing FMP system image type GUID file"
     fi
     this_guid=$(cat ${DEPLOY_DIR_IMAGE}/${TEGRA_FLASHVAR_UEFI_IMAGE}.fmp-image-type-id)
-    if [ -n "${GUID}" -a "$this_guid" != "${GUID}" ]; then
-        bbwarn "FMP system image type GUID set in recipe does not match built configuration"
+    capsule_guid="${this_guid}"
+    if [ -n "${EDK2_USE_COMPAT_FMP_SYSTEM_IMAGE_TYPE_ID}" ]; then
+        capsule_guid="${EDK2_USE_COMPAT_FMP_SYSTEM_IMAGE_TYPE_ID}"
+    fi
+    if [ "$capsule_guid" != "$this_guid" ]; then
+        bbwarn "FMP system image type GUID does not match built in configuration (${capsule_guid} vs ${this_guid}); this will likely cause capsule updates to fail"
     fi
     # Generate BUP images
     PATH="${STAGING_BINDIR_NATIVE}/${FLASHTOOLS_DIR}:${PATH}"
@@ -50,7 +54,7 @@ do_compile() {
     done
 
     # Generate UEFI capsules
-    GUID="$this_guid" sign_uefi_capsules
+    GUID="$capsule_guid" sign_uefi_capsules
 
     # Check if capsules were generated successfully
     if [ ! -e ${B}/tegra-bl.cap ]; then

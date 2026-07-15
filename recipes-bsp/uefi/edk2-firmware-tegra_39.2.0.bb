@@ -47,8 +47,23 @@ do_patch[postfuncs] += "${@'fix_boot_timeout' if bb.utils.to_boolean(d.getVar('T
 
 
 do_configure:append() {
-    ${PYTHON} ${UNPACKDIR}/nvbuildconfig.py --kconfig-path=${S_EDK2_NVIDIA}/Platform/NVIDIA/Kconfig --output-dir=${B}/nvidia-config/Tegra/${EDK2_PLATFORM} ${S_EDK2_NVIDIA}/Platform/NVIDIA/Tegra/DefConfigs/${EDK2_PLATFORM}.defconfig ${@config_fragments(d)}
+
+    config_fragments_args="${@config_fragments(d)}"
+    if [ -n "${EDK2_USE_COMPAT_FMP_SYSTEM_IMAGE_TYPE_ID}" ]; then
+        fmp_image_type_id_cfg=${B}/nvidia-config/Tegra/${EDK2_PLATFORM}/compat-fmp-system-image-type-id.cfg
+        printf 'CONFIG_FMP_SYSTEM_IMAGE_TYPE_ID="%s"\n' "${EDK2_USE_COMPAT_FMP_SYSTEM_IMAGE_TYPE_ID}" > "${fmp_image_type_id_cfg}"
+        config_fragments_args="${config_fragments_args} ${fmp_image_type_id_cfg}"
+    fi
+
+    ${PYTHON} ${UNPACKDIR}/nvbuildconfig.py --kconfig-path=${S_EDK2_NVIDIA}/Platform/NVIDIA/Kconfig --output-dir=${B}/nvidia-config/Tegra/${EDK2_PLATFORM} ${S_EDK2_NVIDIA}/Platform/NVIDIA/Tegra/DefConfigs/${EDK2_PLATFORM}.defconfig ${config_fragments_args}
     . ${B}/nvidia-config/Tegra/${EDK2_PLATFORM}/.config
+
+    if [ -n "${EDK2_USE_COMPAT_FMP_SYSTEM_IMAGE_TYPE_ID}" ]; then
+        if [ "${CONFIG_FMP_SYSTEM_IMAGE_TYPE_ID}" != "${EDK2_USE_COMPAT_FMP_SYSTEM_IMAGE_TYPE_ID}" ]; then
+            bbfatal "CONFIG_FMP_SYSTEM_IMAGE_TYPE_ID was not set to ${EDK2_USE_COMPAT_FMP_SYSTEM_IMAGE_TYPE_ID} in ${B}/nvidia-config/Tegra/${EDK2_PLATFORM}/.config"
+        fi
+    fi
+
     echo "$CONFIG_FMP_SYSTEM_IMAGE_TYPE_ID" > ${B}/nvidia-config/Tegra/${EDK2_PLATFORM}/fmp-image-type-id.txt
 }
 
