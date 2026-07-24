@@ -7,7 +7,7 @@ INHIBIT_DEFAULT_DEPS = "1"
 
 DEPENDS = "tegra-eks-image-base optee-nvsamples-native python3-pycryptodome-native"
 
-inherit python3native
+inherit python3native tegra-ekb-fuse-key
 # python3-pycryptodome needs the legacy provider, so set OPENSSL_MODULES to the
 # right path until this is relocated automatically.
 export OPENSSL_MODULES = "${STAGING_LIBDIR_NATIVE}/ossl-modules"
@@ -80,14 +80,11 @@ TEGRA_GEN_EKB_ARGS:tegra264 ?= "${@tegra_gen_ekb_args_tegra264(d)}"
 #
 # see official documentation for more info https://docs.nvidia.com/jetson/archives/r36.4.3/DeveloperGuide/SD/Security/OpTee.html#ekb-encrypted-key-blob
 
-TEGRA_EKB_OEM_K1 ?= ""
-TEGRA_EKB_OEM_KDK1 ?= ""
+# TEGRA_EKB_OEM_K1/TEGRA_EKB_OEM_KDK1 and the derived TEGRA_EKB_FUSE_KEY are
+# provided by the tegra-ekb-fuse-key class (inherited above) so that this
+# recipe and tegra-secure-boot-setup use the same key value.
 TEGRA_EKB_SYM2 ?= ""
 TEGRA_EKB_AUTH ?= ""
-
-TEGRA_EKB_FUSE_KEY = ""
-TEGRA_EKB_FUSE_KEY:tegra234 = "${TEGRA_EKB_OEM_K1}"
-TEGRA_EKB_FUSE_KEY:tegra264 = "${TEGRA_EKB_OEM_KDK1}"
 
 do_configure[noexec] = "1"
 
